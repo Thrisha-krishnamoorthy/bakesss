@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { CheckCircle, ArrowRight, Truck, Calendar } from 'lucide-react';
+import { CheckCircle, ArrowRight, Truck, Calendar, Store } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
