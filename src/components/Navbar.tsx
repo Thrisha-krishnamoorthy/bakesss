@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ShoppingBag, Menu, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import BrandLogo from './BrandLogo';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -47,12 +48,7 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4 md:py-6">
           {/* Logo */}
-          <Link 
-            to="/" 
-            className="text-xl md:text-2xl font-semibold tracking-tight text-primary transition-all hover:opacity-80"
-          >
-            Baked Bliss
-          </Link>
+          <BrandLogo />
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
@@ -73,10 +69,12 @@ const Navbar = () => {
 
           {/* Cart and mobile menu buttons */}
           <div className="flex items-center space-x-4">
-            <Link to="/cart" className="relative p-2 rounded-full hover:bg-accent transition-colors">
-              <ShoppingBag className="h-5 w-5" />
+            <Link to="/cart" className="relative">
+              <div className="flex items-center justify-center bg-white p-2 rounded-full shadow-sm hover:shadow-md transition-all hover:scale-105">
+                <ShoppingBag className="h-5 w-5 text-[#9b87f5]" />
+              </div>
               {cartItemsCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full h-5 w-5 flex items-center justify-center text-xs font-medium animate-scale-in">
+                <span className="absolute -top-1 -right-1 bg-[#9b87f5] text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-medium animate-scale-in">
                   {cartItemsCount}
                 </span>
               )}
