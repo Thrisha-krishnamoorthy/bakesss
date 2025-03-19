@@ -1,3 +1,4 @@
+
 import { Product } from './types';
 
 export const products: Product[] = [
@@ -33,7 +34,7 @@ export const products: Product[] = [
     price: 3.99,
     description: 'Moist muffins packed with fresh blueberries',
     longDescription: 'Our blueberry muffins are made with locally-sourced blueberries when in season and a hint of lemon zest to brighten the flavor. The muffin base is light and fluffy, and the top has a delicate sugar coating that gives a slight crunch.',
-    image: 'https://images.unsplash.com/photo-1587830857543-84ebd66cb5fb?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1780&q=80',
+    image: 'https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1780&q=80',
     category: 'pastries',
     ingredients: ['Organic flour', 'Butter', 'Sugar', 'Eggs', 'Milk', 'Blueberries', 'Lemon zest', 'Baking powder', 'Salt'],
     allergens: ['Wheat', 'Dairy', 'Eggs'],
