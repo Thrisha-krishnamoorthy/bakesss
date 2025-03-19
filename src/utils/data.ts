@@ -1,4 +1,3 @@
-
 import { Product } from './types';
 
 export const products: Product[] = [
@@ -8,7 +7,7 @@ export const products: Product[] = [
     price: 7.99,
     description: 'Traditional sourdough with a crispy crust and soft interior',
     longDescription: 'Our signature sourdough is made with a 24-hour fermentation process, resulting in a complex flavor profile with just the right amount of tanginess. Each loaf is hand-shaped and baked on a stone hearth for the perfect crust.',
-    image: 'https://images.unsplash.com/photo-1585478259715-2d2a0f2c4f75?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1854&q=80',
+    image: 'https://images.unsplash.com/photo-1586444248902-2f64eddc13df?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1000&q=80',
     category: 'bread',
     featured: true,
     ingredients: ['Organic flour', 'Water', 'Salt', 'Sourdough starter'],
