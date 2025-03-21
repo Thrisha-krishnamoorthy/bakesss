@@ -14,6 +14,7 @@ export const products: Product[] = [
     ingredients: ['Organic flour', 'Water', 'Salt', 'Sourdough starter'],
     allergens: ['Wheat'],
     inStock: true,
+    quantity: 25,
   },
   {
     id: '2',
@@ -27,6 +28,7 @@ export const products: Product[] = [
     ingredients: ['Organic flour', 'Butter', 'Brown sugar', 'Eggs', 'Chocolate chunks', 'Vanilla extract', 'Baking soda', 'Salt'],
     allergens: ['Wheat', 'Dairy', 'Eggs'],
     inStock: true,
+    quantity: 50,
   },
   {
     id: '3',
@@ -39,6 +41,7 @@ export const products: Product[] = [
     ingredients: ['Organic flour', 'Butter', 'Sugar', 'Eggs', 'Milk', 'Blueberries', 'Lemon zest', 'Baking powder', 'Salt'],
     allergens: ['Wheat', 'Dairy', 'Eggs'],
     inStock: true,
+    quantity: 35,
   },
   {
     id: '4',
@@ -52,6 +55,7 @@ export const products: Product[] = [
     ingredients: ['Organic flour', 'European-style butter', 'Sugar', 'Yeast', 'Milk', 'Salt'],
     allergens: ['Wheat', 'Dairy'],
     inStock: true,
+    quantity: 40,
   },
   {
     id: '5',
@@ -64,6 +68,7 @@ export const products: Product[] = [
     ingredients: ['Organic flour', 'Butter', 'Sugar', 'Eggs', 'Milk', 'Cinnamon', 'Raisins', 'Yeast', 'Salt'],
     allergens: ['Wheat', 'Dairy', 'Eggs'],
     inStock: true,
+    quantity: 20,
   },
   {
     id: '6',
@@ -76,6 +81,7 @@ export const products: Product[] = [
     ingredients: ['Organic flour', 'Butter', 'Sugar', 'Eggs', 'Lemons', 'Cream'],
     allergens: ['Wheat', 'Dairy', 'Eggs'],
     inStock: true,
+    quantity: 15,
   },
 ];
 
