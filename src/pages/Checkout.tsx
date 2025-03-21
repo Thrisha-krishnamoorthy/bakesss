@@ -59,15 +59,21 @@ const Checkout = () => {
     // Generate a fake order ID
     const orderId = Math.random().toString(36).substring(2, 10).toUpperCase();
     
+    // Format delivery address for database storage
+    const deliveryAddress = deliveryMethod === 'delivery' && customerInfo.address
+      ? `${customerInfo.address.street}, ${customerInfo.address.city}, ${customerInfo.address.state} ${customerInfo.address.postalCode}`
+      : '';
+
     // Create order object
     const order = {
       id: orderId,
       items: cartItems,
       customer: customerInfo,
-      status: 'pending',
+      status: 'pending' as const,
       total: orderTotal,
       date: new Date().toISOString(),
       deliveryMethod,
+      deliveryAddress,
     };
     
     // Store order in local storage (this would normally go to a backend)

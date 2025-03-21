@@ -15,6 +15,7 @@ const AdminProducts = () => {
   const [newProductImage, setNewProductImage] = useState('');
   const [newProductCategory, setNewProductCategory] = useState('');
   const [newProductQuantity, setNewProductQuantity] = useState('');
+  const [newProductStatus, setNewProductStatus] = useState<'in_stock' | 'out_of_stock'>('in_stock');
   const { toast } = useToast();
 
   const handleEditProduct = (product: Product) => {
@@ -23,7 +24,8 @@ const AdminProducts = () => {
     setNewProductPrice(product.price.toString());
     setNewProductImage(product.image);
     setNewProductCategory(product.category);
-    setNewProductQuantity('10'); // Default quantity, as it's not in our data model
+    setNewProductQuantity(product.quantity?.toString() || '0');
+    setNewProductStatus(product.inStock ? 'in_stock' : 'out_of_stock');
   };
 
   const handleCancelEdit = () => {
@@ -52,6 +54,8 @@ const AdminProducts = () => {
             price: parseFloat(newProductPrice),
             image: newProductImage,
             category: newProductCategory,
+            quantity: parseInt(newProductQuantity) || 0,
+            inStock: newProductStatus === 'in_stock',
           }
         : p
     );
@@ -90,6 +94,9 @@ const AdminProducts = () => {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Quantity
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Status
                 </th>
               </tr>
             </thead>
@@ -158,7 +165,12 @@ const AdminProducts = () => {
                     ${product.price.toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    10
+                    {product.quantity || 0}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <span className={`px-2 py-1 text-xs rounded-full ${product.inStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {product.inStock ? 'In Stock' : 'Out of Stock'}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -219,6 +231,21 @@ const AdminProducts = () => {
                   onChange={(e) => setNewProductQuantity(e.target.value)}
                   className="w-full"
                 />
+              </div>
+              
+              <div>
+                <label htmlFor="productStatus" className="block text-sm font-medium mb-1">
+                  Status
+                </label>
+                <select
+                  id="productStatus"
+                  value={newProductStatus}
+                  onChange={(e) => setNewProductStatus(e.target.value as 'in_stock' | 'out_of_stock')}
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="in_stock">In Stock</option>
+                  <option value="out_of_stock">Out of Stock</option>
+                </select>
               </div>
               
               <div>

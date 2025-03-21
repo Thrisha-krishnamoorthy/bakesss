@@ -11,7 +11,7 @@ const AdminOrders = () => {
   const [orders, setOrders] = useState<Order[]>(savedOrders);
   const { toast } = useToast();
 
-  const updateOrderStatus = (orderId: string, newStatus: 'pending' | 'processing' | 'completed' | 'cancelled' | 'shipped') => {
+  const updateOrderStatus = (orderId: string, newStatus: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled') => {
     const updatedOrders = orders.map(order => 
       order.id === orderId ? { ...order, status: newStatus } : order
     );
@@ -29,9 +29,9 @@ const AdminOrders = () => {
     switch(status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'processing': return 'bg-blue-100 text-blue-800';
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
       case 'shipped': return 'bg-purple-100 text-purple-800';
+      case 'delivered': return 'bg-green-100 text-green-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -70,6 +70,9 @@ const AdminOrders = () => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Total
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Delivery Type
                   </th>
                 </tr>
               </thead>
@@ -118,11 +121,11 @@ const AdminOrders = () => {
                                 <span>Shipped</span>
                               </button>
                               <button 
-                                onClick={() => updateOrderStatus(order.id, 'completed')}
+                                onClick={() => updateOrderStatus(order.id, 'delivered')}
                                 className="px-4 py-2 text-sm w-full text-left hover:bg-muted flex items-center space-x-2"
                               >
-                                <span className={`h-2 w-2 rounded-full ${getStatusColor('completed').split(' ')[0]}`}></span>
-                                <span>Completed</span>
+                                <span className={`h-2 w-2 rounded-full ${getStatusColor('delivered').split(' ')[0]}`}></span>
+                                <span>Delivered</span>
                               </button>
                               <button 
                                 onClick={() => updateOrderStatus(order.id, 'cancelled')}
@@ -138,6 +141,9 @@ const AdminOrders = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       ${order.total.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {order.deliveryMethod === 'delivery' ? 'Delivery' : 'Pickup'}
                     </td>
                   </tr>
                 ))}
