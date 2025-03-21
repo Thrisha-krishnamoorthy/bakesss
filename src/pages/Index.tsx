@@ -10,6 +10,7 @@ import Footer from '../components/Footer';
 const Index = () => {
   const [isHeroLoaded, setIsHeroLoaded] = useState(false);
   const [heroImageUrl] = useState('https://images.unsplash.com/photo-1517433367423-c7e5b0f35086?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2980&q=80');
+  const [isBakerImageLoaded, setIsBakerImageLoaded] = useState(false);
   
   // Get featured products
   const featuredProducts = products.filter(product => product.featured);
@@ -19,6 +20,11 @@ const Index = () => {
     const img = new Image();
     img.src = heroImageUrl;
     img.onload = () => setIsHeroLoaded(true);
+
+    // Preload baker image
+    const bakerImg = new Image();
+    bakerImg.src = "https://images.unsplash.com/photo-1591247378419-2c8a71f593f9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2680&q=80";
+    bakerImg.onload = () => setIsBakerImageLoaded(true);
   }, [heroImageUrl]);
 
   return (
@@ -142,10 +148,24 @@ const Index = () => {
                 </Link>
               </div>
               <div className="relative rounded-lg overflow-hidden aspect-square">
+                {!isBakerImageLoaded && (
+                  <div className="absolute inset-0 bg-muted animate-pulse" />
+                )}
                 <img 
                   src="https://images.unsplash.com/photo-1591247378419-2c8a71f593f9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2680&q=80" 
                   alt="Baker working with dough" 
-                  className="object-cover w-full h-full"
+                  className={`object-cover w-full h-full ${isBakerImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                  onLoad={() => setIsBakerImageLoaded(true)}
+                  onError={() => {
+                    console.error("Failed to load baker image, trying fallback");
+                    // If the original image fails, try a fallback
+                    const img = document.createElement('img');
+                    img.src = "https://images.unsplash.com/photo-1509440159596-0249088772ff?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1772&q=80";
+                    img.onload = () => {
+                      document.querySelector('[alt="Baker working with dough"]').src = img.src;
+                      setIsBakerImageLoaded(true);
+                    };
+                  }}
                 />
               </div>
             </div>
