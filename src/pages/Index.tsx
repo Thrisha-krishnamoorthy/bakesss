@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, ArrowRight } from 'lucide-react';
-import { products, categories } from '../utils/data';
+import { categories } from '../utils/data';
 import ProductCard from '../components/ProductCard';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -14,13 +14,20 @@ const Index = () => {
   const [heroImageUrl] = useState('https://images.unsplash.com/photo-1517433367423-c7e5b0f35086?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2980&q=80');
   const [isBakerImageLoaded, setIsBakerImageLoaded] = useState(false);
   
-  const { data: allProducts = products, isLoading } = useQuery({
+  const { data: allProducts = [], isLoading } = useQuery({
     queryKey: ['products'],
     queryFn: fetchProducts
   });
   
-  // Get featured products
-  const featuredProducts = allProducts.filter(product => product.featured);
+  // Get random products for featured section (showing 3 products)
+  const getRandomProducts = (products: Product[], count: number) => {
+    if (products.length <= count) return products;
+    
+    const shuffled = [...products].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+  };
+  
+  const featuredProducts = getRandomProducts(allProducts, 3);
   
   useEffect(() => {
     // Preload hero image
@@ -122,13 +129,17 @@ const Index = () => {
           <div className="product-grid">
             {isLoading ? (
               // Show loading placeholders
-              Array(4).fill(0).map((_, index) => (
+              Array(3).fill(0).map((_, index) => (
                 <div key={index} className="bg-muted animate-pulse rounded-lg p-4 h-64" />
               ))
-            ) : (
+            ) : featuredProducts.length > 0 ? (
               featuredProducts.map(product => (
                 <ProductCard key={product.id} product={product} />
               ))
+            ) : (
+              <div className="col-span-full text-center py-8">
+                <p className="text-muted-foreground">No products available right now.</p>
+              </div>
             )}
           </div>
         </section>

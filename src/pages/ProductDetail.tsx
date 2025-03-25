@@ -2,12 +2,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Minus, Plus, ShoppingBag, ArrowLeft } from 'lucide-react';
-import { products } from '../utils/data';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../hooks/use-toast';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import ProductCard from '../components/ProductCard';
+import { useQuery } from '@tanstack/react-query';
+import { fetchProducts } from '../utils/api';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -17,7 +18,13 @@ const ProductDetail = () => {
   const { addToCart } = useCart();
   const { toast } = useToast();
   
-  // Find the product
+  // Fetch all products
+  const { data: products = [], isLoading: isProductsLoading } = useQuery({
+    queryKey: ['products'],
+    queryFn: fetchProducts
+  });
+  
+  // Find the product by ID
   const product = products.find(p => p.id === id);
   
   // Find related products (same category, excluding current product)
@@ -33,19 +40,40 @@ const ProductDetail = () => {
     setQuantity(1);
   }, [id]);
   
+  // Handle loading state
+  if (isProductsLoading) {
+    return (
+      <>
+        <Navbar />
+        <div className="page-container py-16 mt-16">
+          <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
+            <div className="bg-muted animate-pulse rounded-lg aspect-square" />
+            <div className="space-y-4">
+              <div className="bg-muted animate-pulse h-8 w-2/3 rounded" />
+              <div className="bg-muted animate-pulse h-6 w-1/4 rounded" />
+              <div className="bg-muted animate-pulse h-24 w-full rounded mt-6" />
+              <div className="bg-muted animate-pulse h-10 w-full rounded mt-8" />
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+  
   // If product not found
   if (!product) {
     return (
       <>
         <Navbar />
-        <div className="page-container text-center py-16">
+        <div className="page-container text-center py-16 mt-16">
           <h1 className="text-2xl font-medium mb-4">Product Not Found</h1>
           <p className="text-muted-foreground mb-6">Sorry, the product you're looking for doesn't exist.</p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/shop')}
             className="inline-flex items-center text-primary hover:text-primary/80 transition-colors"
           >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Shop
           </button>
         </div>
         <Footer />
@@ -65,6 +93,9 @@ const ProductDetail = () => {
       description: `${quantity} × ${product.name} has been added to your cart.`,
     });
   };
+
+  // Default image if product image is missing or invalid
+  const fallbackImage = "https://images.unsplash.com/photo-1495147466023-ac5c588e2e94?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2787&q=80";
 
   return (
     <>
@@ -91,41 +122,36 @@ const ProductDetail = () => {
                 isImageLoaded ? 'opacity-100' : 'opacity-0'
               }`}
               onLoad={() => setIsImageLoaded(true)}
+              onError={(e) => {
+                const imgElement = e.target as HTMLImageElement;
+                imgElement.src = fallbackImage;
+                setIsImageLoaded(true);
+              }}
             />
           </div>
           
           {/* Product details */}
           <div className="flex flex-col">
             <h1 className="text-3xl font-serif">{product.name}</h1>
-            <p className="text-2xl font-semibold mt-2">${product.price.toFixed(2)}</p>
+            <p className="text-2xl font-semibold mt-2">${parseFloat(product.price.toString()).toFixed(2)}</p>
             
             <div className="mt-6">
               <p className="text-muted-foreground">{product.longDescription || product.description}</p>
             </div>
             
-            {/* Ingredients and allergens */}
-            {product.ingredients && (
-              <div className="mt-8">
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">Ingredients</h3>
-                <p className="text-sm">{product.ingredients.join(', ')}</p>
-              </div>
-            )}
+            {/* Category information */}
+            <div className="mt-4">
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">Category</h3>
+              <p className="text-sm">{product.category}</p>
+            </div>
             
-            {product.allergens && (
-              <div className="mt-4">
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">Allergens</h3>
-                <div className="flex flex-wrap gap-2">
-                  {product.allergens.map((allergen) => (
-                    <span 
-                      key={allergen} 
-                      className="inline-block bg-muted px-2 py-1 text-xs rounded-md"
-                    >
-                      {allergen}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Availability information */}
+            <div className="mt-4">
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">Availability</h3>
+              <p className={`text-sm ${product.inStock ? 'text-green-600' : 'text-red-600'}`}>
+                {product.inStock ? 'In Stock' : 'Out of Stock'}
+              </p>
+            </div>
             
             <div className="mt-8 space-y-4">
               {/* Quantity selector */}
@@ -155,8 +181,10 @@ const ProductDetail = () => {
               <button
                 onClick={handleAddToCart}
                 className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-md font-medium flex items-center justify-center transition-all hover:bg-primary/90 btn-hover"
+                disabled={!product.inStock}
               >
-                <ShoppingBag className="mr-2 h-5 w-5" /> Add to Cart
+                <ShoppingBag className="mr-2 h-5 w-5" /> 
+                {product.inStock ? 'Add to Cart' : 'Out of Stock'}
               </button>
             </div>
           </div>
