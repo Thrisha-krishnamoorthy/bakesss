@@ -31,17 +31,17 @@ const Footer = () => {
             <h4 className="font-medium mb-4">Shop</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link to="/shop?category=bread" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/shop?category=Artisan Breads" className="text-muted-foreground hover:text-primary transition-colors">
                   Artisan Breads
                 </Link>
               </li>
               <li>
-                <Link to="/shop?category=pastries" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/shop?category=Pastries" className="text-muted-foreground hover:text-primary transition-colors">
                   Pastries
                 </Link>
               </li>
               <li>
-                <Link to="/shop?category=cookies" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/shop?category=Cookies & Treats" className="text-muted-foreground hover:text-primary transition-colors">
                   Cookies & Treats
                 </Link>
               </li>
@@ -64,16 +64,6 @@ const Footer = () => {
               <li>
                 <Link to="/contact" className="text-muted-foreground hover:text-primary transition-colors">
                   Contact
-                </Link>
-              </li>
-              <li>
-                <Link to="/faq" className="text-muted-foreground hover:text-primary transition-colors">
-                  FAQ
-                </Link>
-              </li>
-              <li>
-                <Link to="/shipping" className="text-muted-foreground hover:text-primary transition-colors">
-                  Shipping & Returns
                 </Link>
               </li>
               <li>
