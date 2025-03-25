@@ -6,14 +6,51 @@ import { products, categories } from '../utils/data';
 import ProductCard from '../components/ProductCard';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { useQuery } from '@tanstack/react-query';
+import { Product } from '../utils/types';
+
+const fetchProducts = async (): Promise<Product[]> => {
+  try {
+    const response = await fetch('http://localhost:5000/products');
+    if (!response.ok) {
+      throw new Error('Failed to fetch products');
+    }
+    
+    const data = await response.json();
+    // Transform the data to match our Product type
+    return data.map((item: any) => ({
+      id: item.product_id.toString(),
+      name: item.name,
+      price: parseFloat(item.price),
+      description: item.description || "",
+      longDescription: item.description || "",
+      image: item.image_url || "https://images.unsplash.com/photo-1608198093002-ad4e005484ec?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
+      category: item.category,
+      featured: Math.random() > 0.7, // Randomly mark some items as featured
+      ingredients: [],
+      allergens: [],
+      inStock: item.status === 'in_stock',
+      quantity: item.quantity
+    }));
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    // Fall back to local data if API fails
+    return products;
+  }
+};
 
 const Index = () => {
   const [isHeroLoaded, setIsHeroLoaded] = useState(false);
   const [heroImageUrl] = useState('https://images.unsplash.com/photo-1517433367423-c7e5b0f35086?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2980&q=80');
   const [isBakerImageLoaded, setIsBakerImageLoaded] = useState(false);
   
+  const { data: allProducts = products, isLoading } = useQuery({
+    queryKey: ['products'],
+    queryFn: fetchProducts
+  });
+  
   // Get featured products
-  const featuredProducts = products.filter(product => product.featured);
+  const featuredProducts = allProducts.filter(product => product.featured);
   
   useEffect(() => {
     // Preload hero image
@@ -86,9 +123,16 @@ const Index = () => {
           </div>
           
           <div className="product-grid">
-            {featuredProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
-            ))}
+            {isLoading ? (
+              // Show loading placeholders
+              Array(4).fill(0).map((_, index) => (
+                <div key={index} className="bg-muted animate-pulse rounded-lg p-4 h-64" />
+              ))
+            ) : (
+              featuredProducts.map(product => (
+                <ProductCard key={product.id} product={product} />
+              ))
+            )}
           </div>
         </section>
 
@@ -212,30 +256,6 @@ const Index = () => {
                 <p className="font-medium">{testimonial.name}</p>
               </div>
             ))}
-          </div>
-        </section>
-
-        {/* Newsletter section */}
-        <section className="page-container bg-muted py-16 mt-16 rounded-lg">
-          <div className="max-w-2xl mx-auto text-center">
-            <h2 className="text-2xl font-serif mb-4">Join Our Newsletter</h2>
-            <p className="text-muted-foreground mb-6">
-              Subscribe to get special offers, free giveaways, and once-in-a-lifetime deals.
-            </p>
-            <form className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto">
-              <input 
-                type="email" 
-                placeholder="Your email address" 
-                className="flex-1 px-4 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                required
-              />
-              <button 
-                type="submit" 
-                className="bg-primary text-primary-foreground px-6 py-2 rounded-md font-medium transition-all hover:bg-primary/90 btn-hover"
-              >
-                Subscribe
-              </button>
-            </form>
           </div>
         </section>
       </main>
