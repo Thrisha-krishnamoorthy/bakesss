@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, ArrowRight } from 'lucide-react';
@@ -8,36 +7,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useQuery } from '@tanstack/react-query';
 import { Product } from '../utils/types';
-
-const fetchProducts = async (): Promise<Product[]> => {
-  try {
-    const response = await fetch('http://localhost:5000/products');
-    if (!response.ok) {
-      throw new Error('Failed to fetch products');
-    }
-    
-    const data = await response.json();
-    // Transform the data to match our Product type
-    return data.map((item: any) => ({
-      id: item.product_id.toString(),
-      name: item.name,
-      price: parseFloat(item.price),
-      description: item.description || "",
-      longDescription: item.description || "",
-      image: item.image_url || "https://images.unsplash.com/photo-1608198093002-ad4e005484ec?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
-      category: item.category,
-      featured: Math.random() > 0.7, // Randomly mark some items as featured
-      ingredients: [],
-      allergens: [],
-      inStock: item.status === 'in_stock',
-      quantity: item.quantity
-    }));
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    // Fall back to local data if API fails
-    return products;
-  }
-};
+import { fetchProducts } from '../utils/api';
 
 const Index = () => {
   const [isHeroLoaded, setIsHeroLoaded] = useState(false);
@@ -63,6 +33,33 @@ const Index = () => {
     bakerImg.src = "https://images.unsplash.com/photo-1591247378419-2c8a71f593f9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2680&q=80";
     bakerImg.onload = () => setIsBakerImageLoaded(true);
   }, [heroImageUrl]);
+
+  // Get unique categories from actual API products
+  const uniqueCategories = [...new Set(allProducts.map(product => product.category))];
+  
+  // Create category data for display
+  const categoryDisplayData = [
+    {
+      id: 'Artisan Breads',
+      name: 'Artisan Breads',
+      image: 'https://images.unsplash.com/photo-1608198093002-ad4e005484ec?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80'
+    },
+    {
+      id: 'Pastries',
+      name: 'Pastries',
+      image: 'https://images.unsplash.com/photo-1517433670267-08bbd4be890f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2796&q=80'
+    },
+    {
+      id: 'Cookies & Treats',
+      name: 'Cookies & Treats',
+      image: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1964&q=80'
+    }
+  ];
+
+  // Filter categoryDisplayData to only include categories that exist in our products
+  const availableCategories = categoryDisplayData.filter(cat => 
+    uniqueCategories.includes(cat.id)
+  );
 
   return (
     <>
@@ -140,10 +137,10 @@ const Index = () => {
         <section className="page-container">
           <h2 className="section-title">Categories</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {categories.slice(1).map((category) => (
+            {availableCategories.map((category) => (
               <Link
                 key={category.id}
-                to={`/shop?category=${category.id}`}
+                to={`/shop?category=${encodeURIComponent(category.id)}`}
                 className="relative overflow-hidden rounded-lg aspect-[4/3] group hover:shadow-lg transition-all"
               >
                 <div 
@@ -151,15 +148,7 @@ const Index = () => {
                 />
                 <div 
                   className="absolute inset-0 bg-cover bg-center transform transition-transform duration-700 group-hover:scale-110"
-                  style={{ 
-                    backgroundImage: `url(${
-                      category.id === 'bread' 
-                        ? 'https://images.unsplash.com/photo-1608198093002-ad4e005484ec?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80' 
-                        : category.id === 'pastries'
-                        ? 'https://images.unsplash.com/photo-1517433670267-08bbd4be890f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2796&q=80'
-                        : 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1964&q=80'
-                    })` 
-                  }}
+                  style={{ backgroundImage: `url(${category.image})` }}
                 />
                 <div className="absolute inset-0 flex items-center justify-center p-4">
                   <h3 className="text-white text-2xl font-medium text-center">
