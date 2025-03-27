@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ShoppingBag, Menu, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import BrandLogo from './BrandLogo';
+import AuthButton from './AuthButton';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -69,6 +70,8 @@ const Navbar = () => {
 
           {/* Cart and mobile menu buttons */}
           <div className="flex items-center space-x-4">
+            <AuthButton />
+            
             <Link to="/cart" className="relative">
               <div className="flex items-center justify-center bg-white p-2 rounded-full shadow-sm hover:shadow-md transition-all hover:scale-105">
                 <ShoppingBag className="h-5 w-5 text-[#9b87f5]" />
