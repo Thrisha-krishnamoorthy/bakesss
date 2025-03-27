@@ -1,3 +1,4 @@
+
 import { Product, Order, Customer, RegistrationData, LoginCredentials, AuthUser } from './types';
 
 const API_URL = 'http://localhost:5000';
@@ -118,12 +119,23 @@ export const placeOrder = async (
   try {
     console.log('Sending order data to backend:', orderData);
     
+    // Check if user_id is valid
+    if (!orderData.user_id || isNaN(orderData.user_id)) {
+      throw new Error('Missing required fields: valid user_id is required');
+    }
+    
     const response = await fetch(`${API_URL}/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(orderData),
+      body: JSON.stringify({
+        user_id: orderData.user_id,
+        items: orderData.items,
+        total_price: orderData.total_price,
+        delivery_type: orderData.delivery_type,
+        delivery_address: orderData.delivery_address || ''
+      }),
     });
     
     if (!response.ok) {

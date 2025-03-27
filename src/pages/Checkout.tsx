@@ -101,9 +101,9 @@ const Checkout = () => {
         price: item.product.price
       }));
   
-      // Create order object
+      // Create order object with the numeric user_id
       const orderData = {
-        user_id: user.user_id, // Using user_id instead of id to match MySQL database
+        user_id: user.user_id,
         items: formattedItems,
         total_price: orderTotal,
         delivery_type: deliveryMethod,
