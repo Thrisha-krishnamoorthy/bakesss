@@ -1,4 +1,3 @@
-
 import { Product, Order, Customer, RegistrationData, LoginCredentials, AuthUser } from './types';
 
 const API_URL = 'http://localhost:5000';
@@ -84,7 +83,7 @@ export const addProduct = async (product: Omit<Product, 'id'>): Promise<Product>
 };
 
 // User-related API calls
-export const registerUser = async (userData: RegistrationData): Promise<{ message: string }> => {
+export const registerUser = async (userData: RegistrationData): Promise<{ message: string; user?: AuthUser }> => {
   try {
     const response = await fetch(`${API_URL}/register`, {
       method: 'POST',

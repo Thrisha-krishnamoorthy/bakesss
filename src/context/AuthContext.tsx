@@ -49,7 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         // Create a fake user object for demo purposes
         loggedInUser = {
-          id: Math.floor(Math.random() * 1000),
+          user_id: Math.floor(Math.random() * 1000),
           name: credentials.email.split('@')[0],
           email: credentials.email,
           phone: '123-456-7890',
@@ -87,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // For demo, we'll automatically log the user in after registration
       const newUser: AuthUser = {
-        id: Math.floor(Math.random() * 1000),
+        user_id: Math.floor(Math.random() * 1000),
         name: data.name,
         email: data.email,
         phone: data.phone,
