@@ -59,11 +59,12 @@ export interface Admin {
 }
 
 export interface AuthUser {
-  id: number;
+  user_id: number; // Changed from id to user_id to match MySQL
   name: string;
   email: string;
   phone: string;
   role: 'user' | 'admin';
+  address?: string;
 }
 
 export interface LoginCredentials {

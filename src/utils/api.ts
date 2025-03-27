@@ -4,7 +4,7 @@ import { Product, Order, Customer, RegistrationData, LoginCredentials, AuthUser 
 const API_URL = 'http://localhost:5000';
 
 // Authentication-related API calls
-export const login = async (credentials: LoginCredentials): Promise<{ message: string }> => {
+export const login = async (credentials: LoginCredentials): Promise<{ message: string; user?: AuthUser }> => {
   try {
     const response = await fetch(`${API_URL}/login`, {
       method: 'POST',
@@ -117,6 +117,8 @@ export const placeOrder = async (
   }
 ): Promise<{ message: string; order_id: number }> => {
   try {
+    console.log('Sending order data to backend:', orderData);
+    
     const response = await fetch(`${API_URL}/orders`, {
       method: 'POST',
       headers: {
@@ -130,7 +132,9 @@ export const placeOrder = async (
       throw new Error(errorData.error || 'Failed to place order');
     }
     
-    return await response.json();
+    const result = await response.json();
+    console.log('Order placed successfully:', result);
+    return result;
   } catch (error) {
     console.error('Error placing order:', error);
     throw error;

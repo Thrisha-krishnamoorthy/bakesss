@@ -28,6 +28,7 @@ const Checkout = () => {
       postalCode: '',
     },
   });
+  const [isProcessing, setIsProcessing] = useState(false);
   
   useEffect(() => {
     // Prepopulate form with user data if available
@@ -42,10 +43,11 @@ const Checkout = () => {
   }, [user]);
   
   // If cart is empty, redirect to cart page
-  if (cartItems.length === 0) {
-    navigate('/cart');
-    return null;
-  }
+  useEffect(() => {
+    if (cartItems.length === 0) {
+      navigate('/cart');
+    }
+  }, [cartItems, navigate]);
   
   // Calculate summary
   const shipping = deliveryMethod === 'pickup' ? 0 : (cartTotal >= 50 ? 0 : 5.99);
@@ -85,6 +87,8 @@ const Checkout = () => {
     }
     
     try {
+      setIsProcessing(true);
+      
       // Format delivery address for database storage
       const deliveryAddress = deliveryMethod === 'delivery' && customerInfo.address
         ? `${customerInfo.address.street}, ${customerInfo.address.city}, ${customerInfo.address.state} ${customerInfo.address.postalCode}`
@@ -99,15 +103,19 @@ const Checkout = () => {
   
       // Create order object
       const orderData = {
-        user_id: user.id,
+        user_id: user.user_id, // Using user_id instead of id to match MySQL database
         items: formattedItems,
         total_price: orderTotal,
         delivery_type: deliveryMethod,
         delivery_address: deliveryAddress,
       };
       
+      console.log('Submitting order:', orderData);
+      
       // Send order to API
       const response = await placeOrder(orderData);
+      
+      console.log('Order placed successfully:', response);
       
       // Clear cart
       clearCart();
@@ -122,8 +130,14 @@ const Checkout = () => {
         description: error instanceof Error ? error.message : "There was a problem placing your order. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsProcessing(false);
     }
   };
+  
+  if (cartItems.length === 0) {
+    return null; // Return early while redirecting
+  }
   
   return (
     <ProtectedRoute>
@@ -352,9 +366,12 @@ const Checkout = () => {
             
             <button
               type="submit"
-              className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-md font-medium transition-all hover:bg-primary/90 btn-hover"
+              disabled={isProcessing}
+              className={`w-full bg-primary text-primary-foreground px-6 py-3 rounded-md font-medium transition-all hover:bg-primary/90 relative ${
+                isProcessing ? 'opacity-70 cursor-not-allowed' : 'btn-hover'
+              }`}
             >
-              Complete Order
+              {isProcessing ? 'Processing Order...' : 'Complete Order'}
             </button>
           </form>
           

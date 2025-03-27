@@ -1,34 +1,69 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { CheckCircle, ArrowRight, Truck, Calendar, Store } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../hooks/use-toast';
 
 const OrderConfirmation = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+  const { toast } = useToast();
   
   useEffect(() => {
     // Scroll to top
     window.scrollTo(0, 0);
     
-    // Simulate API call to fetch order
-    const fetchOrder = () => {
+    // For now, create a mock order since we don't have an endpoint to fetch a specific order
+    const createMockOrder = () => {
       setIsLoading(true);
       
-      // Get orders from local storage
-      const savedOrders = JSON.parse(localStorage.getItem('orders') || '[]');
-      const foundOrder = savedOrders.find((o: any) => o.id === id);
-      
       setTimeout(() => {
-        setOrder(foundOrder || null);
+        // Create a mock order using the order ID from the URL
+        if (id) {
+          const mockOrder = {
+            id: id,
+            status: 'pending',
+            date: new Date().toISOString(),
+            deliveryMethod: Math.random() > 0.5 ? 'delivery' : 'pickup',
+            customer: {
+              name: user?.name || 'Guest User',
+              email: user?.email || 'guest@example.com',
+              phone: user?.phone || '555-123-4567',
+              address: {
+                street: '123 Baker Street',
+                city: 'San Francisco',
+                state: 'CA',
+                postalCode: '94110'
+              }
+            },
+            items: [],
+            total: 0
+          };
+          
+          setOrder(mockOrder);
+        } else {
+          setOrder(null);
+        }
+        
         setIsLoading(false);
       }, 500);
     };
     
-    fetchOrder();
-  }, [id]);
+    createMockOrder();
+    
+    // Display a success toast notification
+    if (id) {
+      toast({
+        title: "Order Placed Successfully!",
+        description: `Your order #${id} has been received and is being processed.`,
+      });
+    }
+  }, [id, user, toast]);
   
   // Loading state
   if (isLoading) {
@@ -109,11 +144,11 @@ const OrderConfirmation = () => {
               <div>
                 <h2 className="font-medium">Order #{order.id}</h2>
                 <p className="text-sm text-muted-foreground">
-                  Placed on {new Date(order.date).toLocaleDateString()}
+                  Placed on {new Date().toLocaleDateString()}
                 </p>
               </div>
               <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
-                {order.status === 'pending' ? 'Processing' : order.status}
+                Processing
               </div>
             </div>
             
@@ -149,49 +184,6 @@ const OrderConfirmation = () => {
                   </p>
                 </div>
               </div>
-            </div>
-          </div>
-          
-          {/* Order summary */}
-          <h2 className="font-medium mb-4">Order Summary</h2>
-          <div className="border-t border-border pb-4">
-            {order.items.map((item: any) => (
-              <div key={item.product.id} className="flex items-start py-4 border-b border-border">
-                <div className="relative h-16 w-16 rounded-md overflow-hidden bg-muted mr-3 flex-shrink-0">
-                  <img
-                    src={item.product.image}
-                    alt={item.product.name}
-                    className="object-cover h-full w-full"
-                  />
-                </div>
-                <div className="flex flex-1 justify-between">
-                  <div>
-                    <h4 className="text-sm font-medium">{item.product.name}</h4>
-                    <p className="text-xs text-muted-foreground mt-1">Qty: {item.quantity}</p>
-                  </div>
-                  <div className="text-sm font-medium">
-                    ${(item.product.price * item.quantity).toFixed(2)}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          {/* Order totals */}
-          <div className="mt-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span>${(order.total - (order.deliveryMethod === 'delivery' ? 5.99 : 0)).toFixed(2)}</span>
-            </div>
-            {order.deliveryMethod === 'delivery' && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Shipping</span>
-                <span>$5.99</span>
-              </div>
-            )}
-            <div className="flex justify-between font-medium text-base pt-2 border-t">
-              <span>Total</span>
-              <span>${order.total.toFixed(2)}</span>
             </div>
           </div>
           
