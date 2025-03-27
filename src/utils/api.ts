@@ -1,7 +1,30 @@
 
-import { Product, Order, Customer } from './types';
+import { Product, Order, Customer, RegistrationData, LoginCredentials, AuthUser } from './types';
 
 const API_URL = 'http://localhost:5000';
+
+// Authentication-related API calls
+export const login = async (credentials: LoginCredentials): Promise<{ message: string }> => {
+  try {
+    const response = await fetch(`${API_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(credentials),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Login failed');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error logging in:', error);
+    throw error;
+  }
+};
 
 // Product-related API calls
 export const fetchProducts = async (): Promise<Product[]> => {
@@ -61,13 +84,7 @@ export const addProduct = async (product: Omit<Product, 'id'>): Promise<Product>
 };
 
 // User-related API calls
-export const registerUser = async (userData: {
-  name: string;
-  email: string;
-  phone: string;
-  address?: string;
-  password: string;
-}): Promise<{ message: string }> => {
+export const registerUser = async (userData: RegistrationData): Promise<{ message: string }> => {
   try {
     const response = await fetch(`${API_URL}/register`, {
       method: 'POST',
@@ -92,13 +109,13 @@ export const registerUser = async (userData: {
 // Order-related API calls
 export const placeOrder = async (
   orderData: {
+    user_id: number;
     items: { product_id: string; quantity: number; price: number }[];
-    customer: Customer;
-    total: number;
-    deliveryMethod: 'delivery' | 'pickup';
-    deliveryAddress?: string;
+    total_price: number;
+    delivery_type: 'delivery' | 'pickup';
+    delivery_address?: string;
   }
-): Promise<{ order_id: string }> => {
+): Promise<{ message: string; order_id: number }> => {
   try {
     const response = await fetch(`${API_URL}/orders`, {
       method: 'POST',

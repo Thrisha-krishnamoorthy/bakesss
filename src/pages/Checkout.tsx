@@ -1,15 +1,21 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, ChevronLeft, CreditCard, Truck, Store } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { Customer } from '../utils/types';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import ProtectedRoute from '../components/ProtectedRoute';
+import { placeOrder } from '../utils/api';
+import { useToast } from '../hooks/use-toast';
 
 const Checkout = () => {
   const navigate = useNavigate();
   const { cartItems, cartTotal, clearCart } = useCart();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery');
   const [customerInfo, setCustomerInfo] = useState<Customer>({
     name: '',
@@ -22,6 +28,18 @@ const Checkout = () => {
       postalCode: '',
     },
   });
+  
+  useEffect(() => {
+    // Prepopulate form with user data if available
+    if (user) {
+      setCustomerInfo(prev => ({
+        ...prev,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+      }));
+    }
+  }, [user]);
   
   // If cart is empty, redirect to cart page
   if (cartItems.length === 0) {
@@ -53,43 +71,62 @@ const Checkout = () => {
     }
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Generate a fake order ID
-    const orderId = Math.random().toString(36).substring(2, 10).toUpperCase();
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please login to complete your order",
+        variant: "destructive"
+      });
+      navigate('/login');
+      return;
+    }
     
-    // Format delivery address for database storage
-    const deliveryAddress = deliveryMethod === 'delivery' && customerInfo.address
-      ? `${customerInfo.address.street}, ${customerInfo.address.city}, ${customerInfo.address.state} ${customerInfo.address.postalCode}`
-      : '';
-
-    // Create order object
-    const order = {
-      id: orderId,
-      items: cartItems,
-      customer: customerInfo,
-      status: 'pending' as const,
-      total: orderTotal,
-      date: new Date().toISOString(),
-      deliveryMethod,
-      deliveryAddress,
-    };
-    
-    // Store order in local storage (this would normally go to a backend)
-    const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-    orders.push(order);
-    localStorage.setItem('orders', JSON.stringify(orders));
-    
-    // Clear cart
-    clearCart();
-    
-    // Navigate to confirmation page
-    navigate(`/order-confirmation/${orderId}`);
+    try {
+      // Format delivery address for database storage
+      const deliveryAddress = deliveryMethod === 'delivery' && customerInfo.address
+        ? `${customerInfo.address.street}, ${customerInfo.address.city}, ${customerInfo.address.state} ${customerInfo.address.postalCode}`
+        : '';
+  
+      // Format items for the API
+      const formattedItems = cartItems.map(item => ({
+        product_id: item.product.id,
+        quantity: item.quantity,
+        price: item.product.price
+      }));
+  
+      // Create order object
+      const orderData = {
+        user_id: user.id,
+        items: formattedItems,
+        total_price: orderTotal,
+        delivery_type: deliveryMethod,
+        delivery_address: deliveryAddress,
+      };
+      
+      // Send order to API
+      const response = await placeOrder(orderData);
+      
+      // Clear cart
+      clearCart();
+      
+      // Navigate to confirmation page
+      navigate(`/order-confirmation/${response.order_id}`);
+      
+    } catch (error) {
+      console.error('Error placing order:', error);
+      toast({
+        title: "Order Failed",
+        description: error instanceof Error ? error.message : "There was a problem placing your order. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
   
   return (
-    <>
+    <ProtectedRoute>
       <Navbar />
       <main className="page-container pt-24">
         <button
@@ -375,7 +412,7 @@ const Checkout = () => {
         </div>
       </main>
       <Footer />
-    </>
+    </ProtectedRoute>
   );
 };
 

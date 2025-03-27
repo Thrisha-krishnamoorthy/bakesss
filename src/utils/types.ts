@@ -57,3 +57,24 @@ export interface Admin {
   name: string;
   email: string;
 }
+
+export interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  role: 'user' | 'admin';
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegistrationData {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  address?: string;
+}

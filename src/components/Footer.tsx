@@ -1,9 +1,11 @@
 
-import { Mail, Phone, Instagram, Facebook, Twitter } from 'lucide-react';
+import { Mail, Phone, Instagram, Facebook, Twitter, UserPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const { isAuthenticated } = useAuth();
   
   return (
     <footer className="bg-secondary pt-16 pb-8 mt-16 border-t">
@@ -71,6 +73,13 @@ const Footer = () => {
                   Privacy Policy
                 </Link>
               </li>
+              {!isAuthenticated && (
+                <li>
+                  <Link to="/register" className="text-muted-foreground hover:text-primary transition-colors flex items-center">
+                    <UserPlus size={14} className="mr-1" /> Register
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
           

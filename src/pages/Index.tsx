@@ -1,10 +1,12 @@
+
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, ArrowRight } from 'lucide-react';
+import { ChevronRight, ArrowRight, UserPlus } from 'lucide-react';
 import { categories } from '../utils/data';
 import ProductCard from '../components/ProductCard';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { useAuth } from '../context/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Product } from '../utils/types';
 import { fetchProducts } from '../utils/api';
@@ -13,6 +15,7 @@ const Index = () => {
   const [isHeroLoaded, setIsHeroLoaded] = useState(false);
   const [heroImageUrl] = useState('https://images.unsplash.com/photo-1517433367423-c7e5b0f35086?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2980&q=80');
   const [isBakerImageLoaded, setIsBakerImageLoaded] = useState(false);
+  const { isAuthenticated } = useAuth();
   
   const { data: allProducts = [], isLoading } = useQuery({
     queryKey: ['products'],
@@ -104,12 +107,22 @@ const Index = () => {
               >
                 Shop Now <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
-              <Link
-                to="/about"
-                className="bg-white/20 backdrop-blur-sm text-white px-6 py-3 rounded-md font-medium transition-all hover:bg-white/30 btn-hover"
-              >
-                Our Story
-              </Link>
+              {!isAuthenticated && (
+                <Link
+                  to="/register"
+                  className="bg-white/20 backdrop-blur-sm text-white px-6 py-3 rounded-md font-medium transition-all hover:bg-white/30 btn-hover flex items-center"
+                >
+                  Create Account <UserPlus className="ml-2 h-4 w-4" />
+                </Link>
+              )}
+              {isAuthenticated ? (
+                <Link
+                  to="/about"
+                  className="bg-white/20 backdrop-blur-sm text-white px-6 py-3 rounded-md font-medium transition-all hover:bg-white/30 btn-hover"
+                >
+                  Our Story
+                </Link>
+              ) : null}
             </div>
           </div>
         </section>
