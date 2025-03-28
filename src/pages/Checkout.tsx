@@ -101,9 +101,9 @@ const Checkout = () => {
         price: item.product.price
       }));
   
-      // Create order object with the numeric user_id
+      // Create order object with the email instead of user_id
       const orderData = {
-        user_id: user.user_id,
+        email: user.email, // Using email instead of user_id as per updated backend
         items: formattedItems,
         total_price: orderTotal,
         delivery_type: deliveryMethod,

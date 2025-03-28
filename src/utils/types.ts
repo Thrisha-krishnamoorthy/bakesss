@@ -59,7 +59,7 @@ export interface Admin {
 }
 
 export interface AuthUser {
-  user_id: number; // Changed from id to user_id to match MySQL
+  user_id: number;
   name: string;
   email: string;
   phone: string;

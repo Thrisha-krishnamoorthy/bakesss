@@ -109,7 +109,7 @@ export const registerUser = async (userData: RegistrationData): Promise<{ messag
 // Order-related API calls
 export const placeOrder = async (
   orderData: {
-    user_id: number;
+    email: string; // Changed from user_id to email as per updated backend
     items: { product_id: string; quantity: number; price: number }[];
     total_price: number;
     delivery_type: 'delivery' | 'pickup';
@@ -119,9 +119,9 @@ export const placeOrder = async (
   try {
     console.log('Sending order data to backend:', orderData);
     
-    // Check if user_id is valid
-    if (!orderData.user_id || isNaN(orderData.user_id)) {
-      throw new Error('Missing required fields: valid user_id is required');
+    // Check if email is provided
+    if (!orderData.email) {
+      throw new Error('Missing required fields: email is required');
     }
     
     const response = await fetch(`${API_URL}/orders`, {
@@ -130,7 +130,7 @@ export const placeOrder = async (
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        user_id: orderData.user_id,
+        email: orderData.email,
         items: orderData.items,
         total_price: orderData.total_price,
         delivery_type: orderData.delivery_type,
