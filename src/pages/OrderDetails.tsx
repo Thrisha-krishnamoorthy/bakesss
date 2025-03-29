@@ -149,13 +149,13 @@ const OrderDetails = () => {
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Total</p>
-                  <p className="text-lg font-semibold">{formatCurrency(orderDetails.total_price)}</p>
+                  <p className="text-lg font-semibold">{formatCurrency(Number(orderDetails.total_price))}</p>
                 </div>
                 {getPaymentBadge(orderDetails.payment_status)}
               </div>
             </div>
             
-            {/* Order status tracker */}
+            {/* Order status tracker - Vertical */}
             <div className="mb-8">
               <h2 className="text-lg font-medium mb-6">Order Status</h2>
               

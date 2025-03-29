@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ShoppingBag, Package, CalendarCheck } from 'lucide-react';
+import { ArrowRight, ShoppingBag, Package, CalendarCheck, Truck, CheckCheck, CircleDot, Circle } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import ProtectedRoute from '../components/ProtectedRoute';
+import { Progress } from "../components/ui/progress";
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../hooks/use-toast';
 import { fetchUserOrders } from '../utils/api';
@@ -64,6 +65,18 @@ const MyOrders = () => {
     );
   };
   
+  // Get order status progress percentage
+  const getStatusProgress = (status: string): number => {
+    const statusMap: Record<string, number> = {
+      'order confirmation': 25,
+      'baked': 50,
+      'shipped': 75,
+      'delivered': 100
+    };
+    
+    return statusMap[status] || 0;
+  };
+  
   // Order status icon and color
   const getStatusIcon = (status: string) => {
     const statusMap: Record<string, { icon: React.ReactNode, color: string }> = {
@@ -76,16 +89,53 @@ const MyOrders = () => {
         color: 'bg-amber-500' 
       },
       'shipped': { 
-        icon: <Package className="h-4 w-4" />, 
+        icon: <Truck className="h-4 w-4" />, 
         color: 'bg-purple-500' 
       },
       'delivered': { 
-        icon: <ArrowRight className="h-4 w-4" />, 
+        icon: <CheckCheck className="h-4 w-4" />, 
         color: 'bg-green-500' 
       }
     };
     
     return statusMap[status] || { icon: <ShoppingBag className="h-4 w-4" />, color: 'bg-gray-500' };
+  };
+
+  // Get all status steps and mark current one
+  const renderOrderStatusTracker = (currentStatus: string) => {
+    const allStatuses = [
+      { key: 'order confirmation', label: 'Order Received', icon: <ShoppingBag className="h-4 w-4" /> },
+      { key: 'baked', label: 'Baked', icon: <CalendarCheck className="h-4 w-4" /> },
+      { key: 'shipped', label: 'Shipped', icon: <Truck className="h-4 w-4" /> },
+      { key: 'delivered', label: 'Delivered', icon: <CheckCheck className="h-4 w-4" /> }
+    ];
+    
+    const currentIndex = allStatuses.findIndex(s => s.key === currentStatus);
+    
+    return (
+      <div className="relative mt-3">
+        <div className="w-full bg-muted h-1 absolute top-2.5 left-0 z-0"></div>
+        <div className="flex justify-between relative z-10">
+          {allStatuses.map((status, index) => {
+            const isComplete = index <= currentIndex;
+            const isCurrent = index === currentIndex;
+            
+            return (
+              <div key={status.key} className="flex flex-col items-center">
+                <div className={`rounded-full p-1 ${
+                  isComplete ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
+                } ${isCurrent ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
+                  {status.icon}
+                </div>
+                <span className={`text-xs mt-1 ${isCurrent ? 'font-medium text-primary' : 'text-muted-foreground'}`}>
+                  {status.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
   
   return (
@@ -123,17 +173,17 @@ const MyOrders = () => {
               </Link>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {orders.map((order) => {
                 const { icon, color } = getStatusIcon(order.order_status);
+                const statusProgress = getStatusProgress(order.order_status);
                 
                 return (
-                  <Link
+                  <div
                     key={order.order_id}
-                    to={`/order/${order.order_id}`}
-                    className="block bg-white border border-border rounded-lg p-4 transition-all hover:border-primary hover:shadow-sm"
+                    className="bg-white border border-border rounded-lg p-6 transition-all hover:border-primary hover:shadow-sm"
                   >
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-start">
                       <div>
                         <div className="text-sm text-muted-foreground">
                           Order #{order.order_id}
@@ -141,29 +191,34 @@ const MyOrders = () => {
                         <div className="text-lg font-medium mt-1">
                           {formatCurrency(order.total_price)}
                         </div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Placed on {new Date(order.date).toLocaleDateString()}
+                        </div>
                       </div>
                       
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center">
-                          <div className={`${color} p-1 rounded-full text-white mr-2`}>
-                            {icon}
-                          </div>
-                          <span className="text-sm capitalize">{order.order_status.replace('_', ' ')}</span>
-                        </div>
-                        
+                      <div className="flex items-center gap-2">
                         {getPaymentBadge(order.payment_status)}
                       </div>
                     </div>
                     
-                    <div className="flex justify-between items-center mt-4 text-sm">
-                      <div className="text-muted-foreground">
-                        Placed on {new Date(order.date).toLocaleDateString()}
+                    {/* Status tracker */}
+                    {renderOrderStatusTracker(order.order_status)}
+                    
+                    <div className="flex justify-between items-center mt-6">
+                      <div className="flex items-center text-sm">
+                        <span className={`${color} p-1 rounded-full text-white mr-2`}>
+                          {icon}
+                        </span>
+                        <span className="capitalize">
+                          {order.order_status.replace('_', ' ')}
+                        </span>
                       </div>
-                      <div className="text-primary font-medium flex items-center">
+                      
+                      <Link to={`/order/${order.order_id}`} className="text-primary font-medium text-sm flex items-center">
                         View Details <ArrowRight className="ml-1 h-4 w-4" />
-                      </div>
+                      </Link>
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </div>

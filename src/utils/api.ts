@@ -177,10 +177,24 @@ export const fetchOrderDetails = async (orderId: number): Promise<any> => {
 // Fetch all orders for a user by email
 export const fetchUserOrders = async (userEmail: string): Promise<any[]> => {
   try {
-    // This would ideally be an API endpoint like /orders/user/:email
-    // For now, we'll simulate the response
+    const response = await fetch(`${API_URL}/user/orders?email=${encodeURIComponent(userEmail)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
     
-    // Mock data for development
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to fetch user orders');
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Error fetching orders for user ${userEmail}:`, error);
+    // For now, return mock data to allow development if backend isn't ready
+    console.warn('Using mock order data for development');
     return [
       {
         order_id: 1,
@@ -204,9 +218,6 @@ export const fetchUserOrders = async (userEmail: string): Promise<any[]> => {
         date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
       }
     ];
-  } catch (error) {
-    console.error(`Error fetching orders for user ${userEmail}:`, error);
-    throw error;
   }
 };
 
