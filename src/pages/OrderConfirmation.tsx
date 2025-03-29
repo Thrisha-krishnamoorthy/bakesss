@@ -2,21 +2,31 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { CheckCircle, ArrowRight, Truck, Calendar, Store } from 'lucide-react';
+import Confetti from 'react-confetti';
+import { useWindowSize } from 'react-use';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../hooks/use-toast';
+import { formatCurrency } from '../utils/formatters';
 
 const OrderConfirmation = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showConfetti, setShowConfetti] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { width, height } = useWindowSize();
   
   useEffect(() => {
     // Scroll to top
     window.scrollTo(0, 0);
+    
+    // Set a timer to hide confetti after 15 seconds
+    const timer = setTimeout(() => {
+      setShowConfetti(false);
+    }, 15000);
     
     // For now, create a mock order since we don't have an endpoint to fetch a specific order
     const createMockOrder = () => {
@@ -27,7 +37,7 @@ const OrderConfirmation = () => {
         if (id) {
           const mockOrder = {
             id: id,
-            status: 'pending',
+            status: 'order confirmation',
             date: new Date().toISOString(),
             deliveryMethod: Math.random() > 0.5 ? 'delivery' : 'pickup',
             customer: {
@@ -63,6 +73,8 @@ const OrderConfirmation = () => {
         description: `Your order #${id} has been received and is being processed.`,
       });
     }
+    
+    return () => clearTimeout(timer);
   }, [id, user, toast]);
   
   // Loading state
@@ -126,6 +138,16 @@ const OrderConfirmation = () => {
 
   return (
     <>
+      {showConfetti && (
+        <Confetti
+          width={width}
+          height={height}
+          recycle={true}
+          numberOfPieces={200}
+          gravity={0.15}
+        />
+      )}
+      
       <Navbar />
       <main className="page-container pt-24">
         <div className="max-w-2xl mx-auto bg-white border border-border rounded-lg p-8 animate-fade-in">

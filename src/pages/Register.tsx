@@ -8,16 +8,19 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../components/ui/form';
 import { AlertCircle, Mail, Phone, User, Lock } from 'lucide-react';
 import { Alert, AlertDescription } from '../components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
 import { RegistrationData } from '../utils/types';
+import { countryCodes } from '../utils/countryCodes';
 
 const Register = () => {
   const navigate = useNavigate();
   const { register, isAuthenticated } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [countryCode, setCountryCode] = useState('+91'); // Default to India's code
 
   const form = useForm<RegistrationData>({
     defaultValues: {
@@ -41,7 +44,11 @@ const Register = () => {
     setIsSubmitting(true);
     
     try {
-      const success = await register(data);
+      // Prepend the country code to the phone number
+      const phoneWithCode = `${countryCode}${data.phone}`;
+      const userData = { ...data, phone: phoneWithCode };
+      
+      const success = await register(userData);
       if (success) {
         navigate('/');
       }
@@ -120,27 +127,43 @@ const Register = () => {
                     )}
                   />
                   
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              placeholder="(123) 456-7890"
-                              className="pl-10"
-                              {...field}
-                              required
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <div className="flex gap-2">
+                      <Select value={countryCode} onValueChange={setCountryCode}>
+                        <SelectTrigger className="w-[120px]">
+                          <SelectValue placeholder="Code" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[300px]">
+                          {countryCodes.sort((a, b) => a.country.localeCompare(b.country)).map((item) => (
+                            <SelectItem key={item.code} value={item.code}>
+                              {item.country} ({item.code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      <FormField
+                        control={form.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormControl className="flex-1">
+                            <div className="relative">
+                              <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder="Phone number"
+                                className="pl-10"
+                                {...field}
+                                required
+                                type="tel"
+                              />
+                            </div>
+                          </FormControl>
+                        )}
+                      />
+                    </div>
+                    <FormMessage />
+                  </FormItem>
                   
                   <FormField
                     control={form.control}

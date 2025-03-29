@@ -109,7 +109,7 @@ export const registerUser = async (userData: RegistrationData): Promise<{ messag
 // Order-related API calls
 export const placeOrder = async (
   orderData: {
-    email: string; // Changed from user_id to email as per updated backend
+    email: string;
     items: { product_id: string; quantity: number; price: number }[];
     total_price: number;
     delivery_type: 'delivery' | 'pickup';
@@ -148,6 +148,64 @@ export const placeOrder = async (
     return result;
   } catch (error) {
     console.error('Error placing order:', error);
+    throw error;
+  }
+};
+
+// Fetch order details by ID
+export const fetchOrderDetails = async (orderId: number): Promise<any> => {
+  try {
+    const response = await fetch(`${API_URL}/orders/details/${orderId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to fetch order details');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching order details for order ${orderId}:`, error);
+    throw error;
+  }
+};
+
+// Fetch all orders for a user by email
+export const fetchUserOrders = async (userEmail: string): Promise<any[]> => {
+  try {
+    // This would ideally be an API endpoint like /orders/user/:email
+    // For now, we'll simulate the response
+    
+    // Mock data for development
+    return [
+      {
+        order_id: 1,
+        order_status: 'order confirmation',
+        total_price: 35.99,
+        payment_status: 'not paid',
+        date: new Date().toISOString()
+      },
+      {
+        order_id: 2,
+        order_status: 'baked',
+        total_price: 42.50,
+        payment_status: 'advance paid',
+        date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        order_id: 3,
+        order_status: 'delivered',
+        total_price: 29.99,
+        payment_status: 'full paid',
+        date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      }
+    ];
+  } catch (error) {
+    console.error(`Error fetching orders for user ${userEmail}:`, error);
     throw error;
   }
 };

@@ -10,6 +10,7 @@ import Footer from '../components/Footer';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { placeOrder } from '../utils/api';
 import { useToast } from '../hooks/use-toast';
+import { formatCurrency } from '../utils/formatters';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -101,9 +102,9 @@ const Checkout = () => {
         price: item.product.price
       }));
   
-      // Create order object with the email instead of user_id
+      // Create order object with the email instead of user_id as per updated backend
       const orderData = {
-        email: user.email, // Using email instead of user_id as per updated backend
+        email: user.email,
         items: formattedItems,
         total_price: orderTotal,
         delivery_type: deliveryMethod,
@@ -396,11 +397,11 @@ const Checkout = () => {
                     <div className="min-w-0 flex-1">
                       <h4 className="text-sm font-medium truncate">{item.product.name}</h4>
                       <p className="text-xs text-muted-foreground mt-1">
-                        ${item.product.price.toFixed(2)} × {item.quantity}
+                        {formatCurrency(item.product.price)} × {item.quantity}
                       </p>
                     </div>
                     <div className="text-sm font-medium">
-                      ${(item.product.price * item.quantity).toFixed(2)}
+                      {formatCurrency(item.product.price * item.quantity)}
                     </div>
                   </div>
                 ))}
@@ -409,19 +410,19 @@ const Checkout = () => {
               <div className="mt-4 space-y-3 text-sm border-t pt-4">
                 <div className="flex justify-between py-2">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">${cartTotal.toFixed(2)}</span>
+                  <span className="font-medium">{formatCurrency(cartTotal)}</span>
                 </div>
                 
                 <div className="flex justify-between py-2">
                   <span className="text-muted-foreground">Shipping</span>
                   <span className="font-medium">
-                    {shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}
+                    {shipping === 0 ? 'Free' : formatCurrency(shipping)}
                   </span>
                 </div>
                 
                 <div className="border-t pt-3 mt-3 flex justify-between text-base">
                   <span className="font-medium">Total</span>
-                  <span className="font-semibold">${orderTotal.toFixed(2)}</span>
+                  <span className="font-semibold">{formatCurrency(orderTotal)}</span>
                 </div>
               </div>
             </div>
