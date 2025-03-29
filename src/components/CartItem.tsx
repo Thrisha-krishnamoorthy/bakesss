@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { CartItem as CartItemType } from '../utils/types';
 import { useCart } from '../context/CartContext';
+import { formatCurrency } from '../utils/formatters';
 
 interface CartItemProps {
   item: CartItemType;
@@ -68,7 +69,7 @@ const CartItem = ({ item }: CartItemProps) => {
 
           {/* Price and remove */}
           <div className="flex items-center space-x-4">
-            <span className="font-medium">${itemTotal.toFixed(2)}</span>
+            <span className="font-medium">{formatCurrency(itemTotal)}</span>
             <button
               onClick={() => removeFromCart(item.product.id)}
               className="text-muted-foreground hover:text-destructive transition-colors"

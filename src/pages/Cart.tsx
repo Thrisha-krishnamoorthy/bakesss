@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext';
 import CartItem from '../components/CartItem';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { formatCurrency } from '../utils/formatters';
 
 const Cart = () => {
   const { cartItems, cartTotal } = useCart();
@@ -73,13 +74,13 @@ const Cart = () => {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between py-2">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">${cartTotal.toFixed(2)}</span>
+                  <span className="font-medium">{formatCurrency(cartTotal)}</span>
                 </div>
                 
                 <div className="flex justify-between py-2">
                   <span className="text-muted-foreground">Shipping</span>
                   <span className="font-medium">
-                    {shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}
+                    {shipping === 0 ? 'Free' : formatCurrency(shipping)}
                   </span>
                 </div>
                 
@@ -91,7 +92,7 @@ const Cart = () => {
                 
                 <div className="border-t pt-3 mt-3 flex justify-between text-base">
                   <span className="font-medium">Total</span>
-                  <span className="font-semibold">${orderTotal.toFixed(2)}</span>
+                  <span className="font-semibold">{formatCurrency(orderTotal)}</span>
                 </div>
               </div>
               

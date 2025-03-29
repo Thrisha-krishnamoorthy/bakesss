@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Minus, Plus, ShoppingBag, ArrowLeft } from 'lucide-react';
@@ -9,6 +8,7 @@ import Footer from '../components/Footer';
 import ProductCard from '../components/ProductCard';
 import { useQuery } from '@tanstack/react-query';
 import { fetchProducts } from '../utils/api';
+import { formatCurrency } from '../utils/formatters';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -18,29 +18,22 @@ const ProductDetail = () => {
   const { addToCart } = useCart();
   const { toast } = useToast();
   
-  // Fetch all products
   const { data: products = [], isLoading: isProductsLoading } = useQuery({
     queryKey: ['products'],
     queryFn: fetchProducts
   });
   
-  // Find the product by ID
   const product = products.find(p => p.id === id);
   
-  // Find related products (same category, excluding current product)
   const relatedProducts = products
     .filter(p => product && p.category === product.category && p.id !== product.id)
     .slice(0, 3);
   
   useEffect(() => {
-    // Scroll to top when component loads
     window.scrollTo(0, 0);
-    
-    // Reset quantity when product changes
     setQuantity(1);
   }, [id]);
   
-  // Handle loading state
   if (isProductsLoading) {
     return (
       <>
@@ -61,7 +54,6 @@ const ProductDetail = () => {
     );
   }
   
-  // If product not found
   if (!product) {
     return (
       <>
@@ -94,14 +86,12 @@ const ProductDetail = () => {
     });
   };
 
-  // Default image if product image is missing or invalid
   const fallbackImage = "https://images.unsplash.com/photo-1495147466023-ac5c588e2e94?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2787&q=80";
 
   return (
     <>
       <Navbar />
       <main className="page-container pt-24">
-        {/* Back button */}
         <button
           onClick={() => navigate(-1)}
           className="inline-flex items-center text-muted-foreground hover:text-primary transition-colors mb-6"
@@ -110,7 +100,6 @@ const ProductDetail = () => {
         </button>
         
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
-          {/* Product image */}
           <div className="relative bg-muted rounded-lg overflow-hidden">
             {!isImageLoaded && (
               <div className="absolute inset-0 bg-muted animate-pulse" />
@@ -130,22 +119,19 @@ const ProductDetail = () => {
             />
           </div>
           
-          {/* Product details */}
           <div className="flex flex-col">
             <h1 className="text-3xl font-serif">{product.name}</h1>
-            <p className="text-2xl font-semibold mt-2">${parseFloat(product.price.toString()).toFixed(2)}</p>
+            <p className="text-2xl font-semibold mt-2">{formatCurrency(product.price)}</p>
             
             <div className="mt-6">
               <p className="text-muted-foreground">{product.longDescription || product.description}</p>
             </div>
             
-            {/* Category information */}
             <div className="mt-4">
               <h3 className="text-sm font-medium text-muted-foreground mb-2">Category</h3>
               <p className="text-sm">{product.category}</p>
             </div>
             
-            {/* Availability information */}
             <div className="mt-4">
               <h3 className="text-sm font-medium text-muted-foreground mb-2">Availability</h3>
               <p className={`text-sm ${product.inStock ? 'text-green-600' : 'text-red-600'}`}>
@@ -154,7 +140,6 @@ const ProductDetail = () => {
             </div>
             
             <div className="mt-8 space-y-4">
-              {/* Quantity selector */}
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">Quantity</h3>
                 <div className="flex items-center border border-input rounded-md w-fit">
@@ -177,7 +162,6 @@ const ProductDetail = () => {
                 </div>
               </div>
               
-              {/* Add to cart button */}
               <button
                 onClick={handleAddToCart}
                 className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-md font-medium flex items-center justify-center transition-all hover:bg-primary/90 btn-hover"
@@ -190,7 +174,6 @@ const ProductDetail = () => {
           </div>
         </div>
         
-        {/* Related products */}
         {relatedProducts.length > 0 && (
           <section className="mt-16">
             <h2 className="section-title">You Might Also Like</h2>
