@@ -5,6 +5,7 @@ import { Product } from '../utils/types';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../hooks/use-toast';
 import { PlusCircle, Check } from 'lucide-react';
+import { formatCurrency } from '../utils/formatters';
 
 interface ProductCardProps {
   product: Product;
@@ -79,7 +80,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
       <div className="flex flex-col p-4">
         <h3 className="font-medium text-lg text-balance">{product.name}</h3>
         <p className="text-muted-foreground text-sm mt-1 line-clamp-2">{product.description}</p>
-        <div className="mt-2 font-semibold">${product.price.toFixed(2)}</div>
+        <div className="mt-2 font-semibold">{formatCurrency(product.price)}</div>
       </div>
     </Link>
   );
