@@ -20,15 +20,15 @@ export interface CartItem {
 }
 
 export interface Order {
-  id: string; // Will map to order_id in database
+  id: string;
+  status: "order confirmation" | "baked" | "shipped" | "delivered";
   items: CartItem[];
   customer: Customer;
-  status: 'order confirmation' | 'baked' | 'shipped' | 'delivered' | 'cancelled';
-  total: number; // Will map to total_price in database
+  total: number;
   date: string;
-  deliveryMethod: 'delivery' | 'pickup'; // Will map to delivery_type in database
-  deliveryAddress?: string; // Will map to delivery_address in database
-  paymentStatus?: 'not paid' | 'advance paid' | 'full paid';
+  deliveryMethod: "delivery" | "pickup";
+  deliveryAddress?: string;
+  paymentStatus?: "not paid" | "advance paid" | "full paid";
 }
 
 export interface Customer {

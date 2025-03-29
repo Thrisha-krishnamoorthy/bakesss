@@ -1,9 +1,10 @@
 
 import { useState } from 'react';
-import { Edit, CheckCircle, X, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { Order } from '@/utils/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/components/ui/use-toast';
+import { formatCurrency } from '@/utils/formatters';
 
 const AdminOrders = () => {
   // Get orders from localStorage or use empty array if none exist
@@ -11,7 +12,7 @@ const AdminOrders = () => {
   const [orders, setOrders] = useState<Order[]>(savedOrders);
   const { toast } = useToast();
 
-  const updateOrderStatus = (orderId: string, newStatus: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled') => {
+  const updateOrderStatus = (orderId: string, newStatus: 'order confirmation' | 'baked' | 'shipped' | 'delivered') => {
     const updatedOrders = orders.map(order => 
       order.id === orderId ? { ...order, status: newStatus } : order
     );
@@ -27,11 +28,10 @@ const AdminOrders = () => {
 
   const getStatusColor = (status: string) => {
     switch(status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'processing': return 'bg-blue-100 text-blue-800';
+      case 'order confirmation': return 'bg-blue-100 text-blue-800';
+      case 'baked': return 'bg-amber-100 text-amber-800';
       case 'shipped': return 'bg-purple-100 text-purple-800';
       case 'delivered': return 'bg-green-100 text-green-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -100,18 +100,18 @@ const AdminOrders = () => {
                           <PopoverContent className="w-48 p-0">
                             <div className="py-1">
                               <button 
-                                onClick={() => updateOrderStatus(order.id, 'pending')}
+                                onClick={() => updateOrderStatus(order.id, 'order confirmation')}
                                 className="px-4 py-2 text-sm w-full text-left hover:bg-muted flex items-center space-x-2"
                               >
-                                <span className={`h-2 w-2 rounded-full ${getStatusColor('pending').split(' ')[0]}`}></span>
-                                <span>Pending</span>
+                                <span className={`h-2 w-2 rounded-full ${getStatusColor('order confirmation').split(' ')[0]}`}></span>
+                                <span>Order Confirmation</span>
                               </button>
                               <button 
-                                onClick={() => updateOrderStatus(order.id, 'processing')}
+                                onClick={() => updateOrderStatus(order.id, 'baked')}
                                 className="px-4 py-2 text-sm w-full text-left hover:bg-muted flex items-center space-x-2"
                               >
-                                <span className={`h-2 w-2 rounded-full ${getStatusColor('processing').split(' ')[0]}`}></span>
-                                <span>Processing</span>
+                                <span className={`h-2 w-2 rounded-full ${getStatusColor('baked').split(' ')[0]}`}></span>
+                                <span>Baked</span>
                               </button>
                               <button 
                                 onClick={() => updateOrderStatus(order.id, 'shipped')}
@@ -127,20 +127,13 @@ const AdminOrders = () => {
                                 <span className={`h-2 w-2 rounded-full ${getStatusColor('delivered').split(' ')[0]}`}></span>
                                 <span>Delivered</span>
                               </button>
-                              <button 
-                                onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                                className="px-4 py-2 text-sm w-full text-left hover:bg-muted flex items-center space-x-2"
-                              >
-                                <span className={`h-2 w-2 rounded-full ${getStatusColor('cancelled').split(' ')[0]}`}></span>
-                                <span>Cancelled</span>
-                              </button>
                             </div>
                           </PopoverContent>
                         </Popover>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      ${order.total.toFixed(2)}
+                      {formatCurrency(order.total)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {order.deliveryMethod === 'delivery' ? 'Delivery' : 'Pickup'}
