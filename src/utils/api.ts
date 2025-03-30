@@ -1,4 +1,3 @@
-
 import { Product, Order, Customer, RegistrationData, LoginCredentials, AuthUser } from './types';
 
 const API_URL = 'http://localhost:5000';
@@ -35,7 +34,6 @@ export const fetchProducts = async (): Promise<Product[]> => {
     }
     
     const data = await response.json();
-    // Transform the data to match our Product type
     return data.map((item: any) => ({
       id: item.product_id.toString(),
       name: item.name,
@@ -119,7 +117,6 @@ export const placeOrder = async (
   try {
     console.log('Sending order data to backend:', orderData);
     
-    // Check if email is provided
     if (!orderData.email) {
       throw new Error('Missing required fields: email is required');
     }
@@ -177,7 +174,8 @@ export const fetchOrderDetails = async (orderId: number): Promise<any> => {
 // Fetch all orders for a user by email
 export const fetchUserOrders = async (userEmail: string): Promise<any[]> => {
   try {
-    // First get the user_id from the backend
+    console.log('Fetching orders for user:', userEmail);
+    
     const userResponse = await fetch(`${API_URL}/user?email=${encodeURIComponent(userEmail)}`, {
       method: 'GET',
       headers: {
@@ -192,8 +190,8 @@ export const fetchUserOrders = async (userEmail: string): Promise<any[]> => {
     
     const userData = await userResponse.json();
     const userId = userData.user_id;
+    console.log('Fetched user_id:', userId);
     
-    // Now fetch orders using the user_id
     const ordersResponse = await fetch(`${API_URL}/orders/user/${userId}`, {
       method: 'GET',
       headers: {
@@ -207,43 +205,19 @@ export const fetchUserOrders = async (userEmail: string): Promise<any[]> => {
     }
     
     const ordersData = await ordersResponse.json();
+    console.log('Fetched real orders data:', ordersData);
     
-    // Transform to match our expected format
     return ordersData.map((order: any) => ({
       order_id: order.order_id,
       order_status: order.order_status,
       total_price: parseFloat(order.total_price),
       payment_status: order.payment_status,
-      date: new Date().toISOString(), // Since date might not be included in the response
-      products: order.products
+      date: order.date || new Date().toISOString(),
+      products: order.products || []
     }));
   } catch (error) {
     console.error(`Error fetching orders for user ${userEmail}:`, error);
-    // Return mock data only during development if backend is unreachable
-    console.warn('Using mock order data for development');
-    return [
-      {
-        order_id: 1,
-        order_status: 'order confirmation',
-        total_price: 35.99,
-        payment_status: 'not paid',
-        date: new Date().toISOString()
-      },
-      {
-        order_id: 2,
-        order_status: 'baked',
-        total_price: 42.50,
-        payment_status: 'advance paid',
-        date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        order_id: 3,
-        order_status: 'delivered',
-        total_price: 29.99,
-        payment_status: 'full paid',
-        date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-      }
-    ];
+    throw error;
   }
 };
 

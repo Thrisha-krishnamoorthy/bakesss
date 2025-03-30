@@ -38,7 +38,7 @@ const App = () => (
               <Route path="/order-confirmation/:id" element={<OrderConfirmation />} />
               <Route path="/order/:id" element={<OrderDetails />} />
               <Route path="/my-orders" element={<MyOrders />} />
-              {/* Add redirect from /orders to /my-orders */}
+              {/* Redirect from /orders to /my-orders */}
               <Route path="/orders" element={<Navigate to="/my-orders" replace />} />
               <Route path="/shop" element={<Shop />} />
               <Route path="/about" element={<About />} />

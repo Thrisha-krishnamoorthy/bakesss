@@ -37,6 +37,7 @@ const MyOrders = () => {
       
       try {
         setIsLoading(true);
+        console.log('Fetching orders for user:', user.email);
         const data = await fetchUserOrders(user.email);
         console.log("Fetched orders data:", data);
         setOrders(data);
