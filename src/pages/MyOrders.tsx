@@ -1,15 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ShoppingBag, Package, CalendarCheck, Truck, CheckCheck, CircleDot, Circle } from 'lucide-react';
+import { ArrowRight, ShoppingBag, Package, CalendarCheck, Truck, CheckCheck } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import ProtectedRoute from '../components/ProtectedRoute';
-import { Progress } from "../components/ui/progress";
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../hooks/use-toast';
 import { fetchUserOrders } from '../utils/api';
 import { formatCurrency } from '../utils/formatters';
+
+interface OrderProduct {
+  product_id: number;
+  product_name: string;
+  product_status: string;
+}
 
 interface Order {
   order_id: number;
@@ -17,6 +22,7 @@ interface Order {
   total_price: number;
   payment_status: 'not paid' | 'advance paid' | 'full paid';
   date: string;
+  products?: OrderProduct[];
 }
 
 const MyOrders = () => {
@@ -32,6 +38,7 @@ const MyOrders = () => {
       try {
         setIsLoading(true);
         const data = await fetchUserOrders(user.email);
+        console.log("Fetched orders data:", data);
         setOrders(data);
       } catch (error) {
         console.error('Error fetching orders:', error);
@@ -138,6 +145,23 @@ const MyOrders = () => {
     );
   };
   
+  // Function to show product names when available
+  const renderProductList = (products?: OrderProduct[]) => {
+    if (!products || products.length === 0) return null;
+    
+    return (
+      <div className="mt-2 text-sm text-muted-foreground">
+        <span className="font-medium">Products: </span>
+        {products.map((product, index) => (
+          <span key={product.product_id}>
+            {product.product_name}
+            {index < products.length - 1 ? ', ' : ''}
+          </span>
+        ))}
+      </div>
+    );
+  };
+  
   return (
     <ProtectedRoute>
       <Navbar />
@@ -192,8 +216,11 @@ const MyOrders = () => {
                           {formatCurrency(order.total_price)}
                         </div>
                         <div className="text-sm text-muted-foreground mt-1">
-                          Placed on {new Date(order.date).toLocaleDateString()}
+                          {order.date ? `Placed on ${new Date(order.date).toLocaleDateString()}` : ''}
                         </div>
+                        
+                        {/* Display product list */}
+                        {renderProductList(order.products)}
                       </div>
                       
                       <div className="flex items-center gap-2">

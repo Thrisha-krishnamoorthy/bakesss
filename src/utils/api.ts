@@ -177,23 +177,49 @@ export const fetchOrderDetails = async (orderId: number): Promise<any> => {
 // Fetch all orders for a user by email
 export const fetchUserOrders = async (userEmail: string): Promise<any[]> => {
   try {
-    const response = await fetch(`${API_URL}/user/orders?email=${encodeURIComponent(userEmail)}`, {
+    // First get the user_id from the backend
+    const userResponse = await fetch(`${API_URL}/user?email=${encodeURIComponent(userEmail)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
     });
     
-    if (!response.ok) {
-      const errorData = await response.json();
+    if (!userResponse.ok) {
+      const errorData = await userResponse.json();
+      throw new Error(errorData.error || 'Failed to fetch user information');
+    }
+    
+    const userData = await userResponse.json();
+    const userId = userData.user_id;
+    
+    // Now fetch orders using the user_id
+    const ordersResponse = await fetch(`${API_URL}/orders/user/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!ordersResponse.ok) {
+      const errorData = await ordersResponse.json();
       throw new Error(errorData.error || 'Failed to fetch user orders');
     }
     
-    const data = await response.json();
-    return data;
+    const ordersData = await ordersResponse.json();
+    
+    // Transform to match our expected format
+    return ordersData.map((order: any) => ({
+      order_id: order.order_id,
+      order_status: order.order_status,
+      total_price: parseFloat(order.total_price),
+      payment_status: order.payment_status,
+      date: new Date().toISOString(), // Since date might not be included in the response
+      products: order.products
+    }));
   } catch (error) {
     console.error(`Error fetching orders for user ${userEmail}:`, error);
-    // For now, return mock data to allow development if backend isn't ready
+    // Return mock data only during development if backend is unreachable
     console.warn('Using mock order data for development');
     return [
       {

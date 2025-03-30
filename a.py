@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 import mysql.connector
 from mysql.connector import Error
@@ -30,7 +29,6 @@ def get_db_connection():
 # Route to register a new user
 @app.route('/register', methods=['POST'])
 def register_user():
-    # ... keep existing code (register_user function implementation)
     data = request.get_json()
     # Validate required fields
     required_fields = ['name', 'email', 'phone', 'password']
@@ -79,7 +77,6 @@ def register_user():
 
 @app.route('/products', methods=['GET'])
 def get_products():
-    # ... keep existing code (get_products function implementation)
     print("Received GET request for products")  # Debug log
     connection = get_db_connection()
     if not connection:
@@ -102,7 +99,6 @@ def get_products():
 
 @app.route('/login', methods=['POST'])
 def login_user():
-    # ... keep existing code (login_user function implementation)
     data = request.get_json()
     print("Received data:", data)  # Debug: Print received data
 
@@ -142,7 +138,6 @@ def login_user():
 
 @app.route('/update-product-quantity', methods=['POST'])
 def update_product_quantity():
-    # ... keep existing code (update_product_quantity function implementation)
     data = request.get_json()
     print("Received data:", data)  # Debugging
 
@@ -177,7 +172,6 @@ def update_product_quantity():
 
 @app.route('/orders', methods=['POST'])
 def place_order():
-    # ... keep existing code (place_order function implementation)
     data = request.get_json()
     
     # Validate input data
@@ -261,7 +255,6 @@ def place_order():
 
 @app.route('/products', methods=['POST'])
 def add_product():
-    # ... keep existing code (add_product function implementation)
     data = request.get_json()
     required_fields = ['name', 'description', 'price', 'category', 'quantity']
     if not all(field in data for field in required_fields):
@@ -350,7 +343,7 @@ def fetch_order_details(order_id):
         cursor.close()
         connection.close()
 
-# Route to get all orders for a user
+# Route to get all orders for a user by email
 @app.route('/user/orders', methods=['GET'])
 def get_user_orders():
     email = request.args.get('email')
@@ -392,23 +385,86 @@ def get_user_orders():
         cursor.close()
         connection.close()
 
+# New route to get user_id from email
+@app.route('/user', methods=['GET'])
+def get_user_by_email():
+    email = request.args.get('email')
+    if not email:
+        return jsonify({"error": "Email parameter is required"}), 400
+    
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    try:
+        cursor = connection.cursor(dictionary=True)
+        
+        cursor.execute("SELECT user_id, name, email, role FROM users WHERE email = %s", (email,))
+        user = cursor.fetchone()
+        
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+            
+        return jsonify(user), 200
+
+    except Error as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+# Route to get all orders for a user by user_id
+@app.route('/orders/user/<int:user_id>', methods=['GET'])
+def fetch_orders_by_user(user_id):
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    try:
+        cursor = connection.cursor(dictionary=True)
+        
+        query = """
+        SELECT o.order_id, o.order_status, o.total_price, o.payment_status, 
+               oi.product_id, p.name AS product_name, p.status AS product_status,
+               o.created_at as date
+        FROM orders o
+        JOIN order_items oi ON o.order_id = oi.order_id
+        JOIN products p ON oi.product_id = p.product_id
+        WHERE o.user_id = %s
+        ORDER BY o.created_at DESC
+        """
+        cursor.execute(query, (user_id,))
+        order_details = cursor.fetchall()
+
+        if not order_details:
+            return jsonify([]), 200  # Empty list for no orders
+
+        orders_dict = {}
+        for row in order_details:
+            if row["order_id"] not in orders_dict:
+                orders_dict[row["order_id"]] = {
+                    "order_id": row["order_id"],
+                    "order_status": row["order_status"],
+                    "total_price": row["total_price"],
+                    "payment_status": row["payment_status"],
+                    "date": row["date"].isoformat() if row["date"] else None,
+                    "products": []
+                }
+            
+            orders_dict[row["order_id"]]["products"].append({
+                "product_id": row["product_id"],
+                "product_name": row["product_name"],
+                "product_status": row["product_status"]
+            })
+
+        return jsonify(list(orders_dict.values())), 200
+
+    except Error as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
 if __name__ == '__main__':
     print("Starting Flask server on port 5000...")
-    app.run(debug=True, host='0.0.0.0', port=5000) 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    app.run(debug=True, host='0.0.0.0', port=5000)
