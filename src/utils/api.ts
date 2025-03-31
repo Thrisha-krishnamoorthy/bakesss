@@ -1,24 +1,45 @@
 import { Product, Order, Customer, RegistrationData, LoginCredentials, AuthUser } from './types';
 
+// Use HTTP in development to avoid certificate issues
 const API_URL = 'http://localhost:5000';
+
+// Helper function to handle fetch with proper error handling
+const fetchWithErrorHandling = async (url: string, options?: RequestInit) => {
+  try {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
+    }
+    return response;
+  } catch (error) {
+    console.error(`Fetch error for ${url}:`, error);
+    throw error;
+  }
+};
 
 // Authentication-related API calls
 export const login = async (credentials: LoginCredentials): Promise<{ message: string; user?: AuthUser }> => {
   try {
-    const response = await fetch(`${API_URL}/login`, {
+    const response = await fetchWithErrorHandling(`${API_URL}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(credentials),
     });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Login failed');
-    }
-    
-    return await response.json();
+
+    const data = await response.json();
+    return {
+      message: data.message,
+      user: {
+        user_id: data.user_id || 0,
+        email: credentials.email,
+        name: data.name || 'User',
+        phone: data.phone || '',
+        role: data.role || 'user',
+      },
+    };
   } catch (error) {
     console.error('Error logging in:', error);
     throw error;
@@ -28,34 +49,35 @@ export const login = async (credentials: LoginCredentials): Promise<{ message: s
 // Product-related API calls
 export const fetchProducts = async (): Promise<Product[]> => {
   try {
-    const response = await fetch(`${API_URL}/products`);
-    if (!response.ok) {
+    const response = await fetchWithErrorHandling(`${API_URL}/products`);
+    const data = await response.json();
+    
+    if (!Array.isArray(data)) {
       throw new Error('Failed to fetch products');
     }
     
-    const data = await response.json();
-    return data.map((item: any) => ({
-      id: item.product_id.toString(),
-      name: item.name,
-      price: parseFloat(item.price),
-      description: item.description || "",
-      longDescription: item.description || "",
-      image: item.image_url || "https://images.unsplash.com/photo-1608198093002-ad4e005484ec?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
-      category: item.category,
+    return data.map((product: any) => ({
+      id: product.product_id.toString(),
+      name: product.name,
+      description: product.description || '',
+      longDescription: product.description || '',
+      price: parseFloat(product.price),
+      category: product.category,
+      image: product.image_url || "https://images.unsplash.com/photo-1608198093002-ad4e005484ec?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
+      quantity: product.quantity,
+      inStock: product.status === 'in_stock',
       ingredients: [],
-      allergens: [],
-      inStock: item.status === 'in_stock',
-      quantity: item.quantity
+      allergens: []
     }));
   } catch (error) {
     console.error('Error fetching products:', error);
-    throw error;
+    return [];
   }
 };
 
 export const addProduct = async (product: Omit<Product, 'id'>): Promise<Product> => {
   try {
-    const response = await fetch(`${API_URL}/products`, {
+    const response = await fetchWithErrorHandling(`${API_URL}/products`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -66,15 +88,16 @@ export const addProduct = async (product: Omit<Product, 'id'>): Promise<Product>
         price: product.price,
         image_url: product.image,
         category: product.category,
-        quantity: product.quantity
+        quantity: product.quantity,
+        status: product.inStock ? 'in_stock' : 'out_of_stock'
       }),
     });
     
-    if (!response.ok) {
-      throw new Error('Failed to add product');
-    }
-    
-    return await response.json();
+    const data = await response.json();
+    return {
+      id: data.product_id.toString(),
+      ...product
+    };
   } catch (error) {
     console.error('Error adding product:', error);
     throw error;
@@ -82,9 +105,9 @@ export const addProduct = async (product: Omit<Product, 'id'>): Promise<Product>
 };
 
 // User-related API calls
-export const registerUser = async (userData: RegistrationData): Promise<{ message: string; user?: AuthUser }> => {
+export const registerUser = async (userData: RegistrationData): Promise<{ message: string }> => {
   try {
-    const response = await fetch(`${API_URL}/register`, {
+    const response = await fetchWithErrorHandling(`${API_URL}/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -92,12 +115,8 @@ export const registerUser = async (userData: RegistrationData): Promise<{ messag
       body: JSON.stringify(userData),
     });
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Registration failed');
-    }
-    
-    return await response.json();
+    const data = await response.json();
+    return { message: data.message };
   } catch (error) {
     console.error('Error registering user:', error);
     throw error;
@@ -105,44 +124,39 @@ export const registerUser = async (userData: RegistrationData): Promise<{ messag
 };
 
 // Order-related API calls
-export const placeOrder = async (
-  orderData: {
-    email: string;
-    items: { product_id: string; quantity: number; price: number }[];
-    total_price: number;
-    delivery_type: 'delivery' | 'pickup';
-    delivery_address?: string;
-  }
-): Promise<{ message: string; order_id: number }> => {
+export const placeOrder = async (orderData: {
+  email: string;
+  items: { product_id: string; quantity: number; price: number }[];
+  total_price: number;
+  delivery_type: 'delivery' | 'pickup';
+  delivery_address?: string;
+}): Promise<{ message: string; order_id: number }> => {
   try {
-    console.log('Sending order data to backend:', orderData);
-    
-    if (!orderData.email) {
-      throw new Error('Missing required fields: email is required');
-    }
-    
-    const response = await fetch(`${API_URL}/orders`, {
+    // Convert product_id strings to numbers for the backend
+    const formattedItems = orderData.items.map(item => ({
+      product_id: parseInt(item.product_id),
+      quantity: item.quantity,
+      price: item.price
+    }));
+
+    const response = await fetchWithErrorHandling(`${API_URL}/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         email: orderData.email,
-        items: orderData.items,
-        total_price: orderData.total_price,
-        delivery_type: orderData.delivery_type,
-        delivery_address: orderData.delivery_address || ''
+        items: formattedItems,
+        shipping_address: orderData.delivery_address || '',
+        total_amount: orderData.total_price
       }),
     });
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to place order');
-    }
-    
-    const result = await response.json();
-    console.log('Order placed successfully:', result);
-    return result;
+    const data = await response.json();
+    return { 
+      message: data.message,
+      order_id: data.order_id
+    };
   } catch (error) {
     console.error('Error placing order:', error);
     throw error;
@@ -152,19 +166,19 @@ export const placeOrder = async (
 // Fetch order details by ID
 export const fetchOrderDetails = async (orderId: number): Promise<any> => {
   try {
-    const response = await fetch(`${API_URL}/orders/details/${orderId}`, {
+    const response = await fetchWithErrorHandling(`${API_URL}/orders/details/${orderId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
     });
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to fetch order details');
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(data.error || 'Failed to fetch order details');
     }
     
-    return await response.json();
+    return data;
   } catch (error) {
     console.error(`Error fetching order details for order ${orderId}:`, error);
     throw error;
@@ -176,60 +190,35 @@ export const fetchUserOrders = async (userEmail: string): Promise<any[]> => {
   try {
     console.log('Fetching orders for user:', userEmail);
     
-    const userResponse = await fetch(`${API_URL}/user?email=${encodeURIComponent(userEmail)}`, {
+    // Use the new email-based endpoint
+    const ordersResponse = await fetchWithErrorHandling(`${API_URL}/orders/user/email/${encodeURIComponent(userEmail)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
     });
-    
-    if (!userResponse.ok) {
-      const errorData = await userResponse.json();
-      throw new Error(errorData.error || 'Failed to fetch user information');
-    }
-    
-    const userData = await userResponse.json();
-    const userId = userData.user_id;
-    console.log('Fetched user_id:', userId);
-    
-    const ordersResponse = await fetch(`${API_URL}/orders/user/${userId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!ordersResponse.ok) {
-      const errorData = await ordersResponse.json();
-      throw new Error(errorData.error || 'Failed to fetch user orders');
-    }
     
     const ordersData = await ordersResponse.json();
+    if (ordersData.error) {
+      throw new Error(ordersData.error || 'Failed to fetch user orders');
+    }
+    
     console.log('Fetched real orders data:', ordersData);
     
-    return ordersData.map((order: any) => ({
-      order_id: order.order_id,
-      order_status: order.order_status,
-      total_price: parseFloat(order.total_price),
-      payment_status: order.payment_status,
-      date: order.date || new Date().toISOString(),
-      products: order.products || []
-    }));
+    // The backend now returns data in the correct format
+    return ordersData;
   } catch (error) {
     console.error(`Error fetching orders for user ${userEmail}:`, error);
-    throw error;
+    
+    // Return empty array on error
+    return [];
   }
 };
 
 // Contact form submission
-export const submitContactForm = async (formData: {
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-}): Promise<{ message: string }> => {
+export const submitContactForm = async (formData: any): Promise<{ message: string }> => {
   try {
-    const response = await fetch(`${API_URL}/contact`, {
+    const response = await fetchWithErrorHandling(`${API_URL}/contact`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -237,12 +226,8 @@ export const submitContactForm = async (formData: {
       body: JSON.stringify(formData),
     });
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to submit form');
-    }
-    
-    return await response.json();
+    const data = await response.json();
+    return { message: data.message };
   } catch (error) {
     console.error('Error submitting contact form:', error);
     throw error;

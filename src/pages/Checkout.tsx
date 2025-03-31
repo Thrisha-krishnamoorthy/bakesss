@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, ChevronLeft, CreditCard, Truck, Store } from 'lucide-react';
@@ -11,6 +10,10 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import { placeOrder } from '../utils/api';
 import { useToast } from '../hooks/use-toast';
 import { formatCurrency } from '../utils/formatters';
+import GoogleMapAddress from '../components/GoogleMapAddress';
+
+// Replace this with your actual Google Maps API key
+const GOOGLE_MAPS_API_KEY = 'AIzaSyDx1nQPvpMGBot0CbM6cUhUVzmdgtz32pQ';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -18,7 +21,19 @@ const Checkout = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery');
-  const [customerInfo, setCustomerInfo] = useState<Customer>({
+  const [customerInfo, setCustomerInfo] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+    address: {
+      street: string;
+      city: string;
+      state: string;
+      postalCode: string;
+      lat: number;
+      lng: number;
+    };
+  }>({
     name: '',
     email: '',
     phone: '',
@@ -27,14 +42,16 @@ const Checkout = () => {
       city: '',
       state: '',
       postalCode: '',
+      lat: 0,
+      lng: 0,
     },
   });
   const [isProcessing, setIsProcessing] = useState(false);
-  
+
   useEffect(() => {
     // Prepopulate form with user data if available
     if (user) {
-      setCustomerInfo(prev => ({
+      setCustomerInfo((prev) => ({
         ...prev,
         name: user.name,
         email: user.email,
@@ -42,21 +59,21 @@ const Checkout = () => {
       }));
     }
   }, [user]);
-  
+
   // If cart is empty, redirect to cart page
   useEffect(() => {
     if (cartItems.length === 0) {
       navigate('/cart');
     }
   }, [cartItems, navigate]);
-  
+
   // Calculate summary
-  const shipping = deliveryMethod === 'pickup' ? 0 : (cartTotal >= 50 ? 0 : 5.99);
+  const shipping = deliveryMethod === 'pickup' ? 0 : cartTotal >= 50 ? 0 : 5.99;
   const orderTotal = cartTotal + shipping;
-  
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
+
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
       setCustomerInfo({
@@ -73,35 +90,35 @@ const Checkout = () => {
       });
     }
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) {
       toast({
-        title: "Authentication required",
-        description: "Please login to complete your order",
-        variant: "destructive"
+        title: 'Authentication required',
+        description: 'Please login to complete your order',
+        variant: 'destructive',
       });
       navigate('/login');
       return;
     }
-    
+
     try {
       setIsProcessing(true);
-      
+
       // Format delivery address for database storage
       const deliveryAddress = deliveryMethod === 'delivery' && customerInfo.address
         ? `${customerInfo.address.street}, ${customerInfo.address.city}, ${customerInfo.address.state} ${customerInfo.address.postalCode}`
         : '';
-  
+
       // Format items for the API
-      const formattedItems = cartItems.map(item => ({
+      const formattedItems = cartItems.map((item) => ({
         product_id: item.product.id,
         quantity: item.quantity,
-        price: item.product.price
+        price: item.product.price,
       }));
-  
+
       // Create order object with the email instead of user_id as per updated backend
       const orderData = {
         email: user.email,
@@ -110,326 +127,317 @@ const Checkout = () => {
         delivery_type: deliveryMethod,
         delivery_address: deliveryAddress,
       };
-      
+
       console.log('Submitting order:', orderData);
-      
+
       // Send order to API
       const response = await placeOrder(orderData);
-      
+
       console.log('Order placed successfully:', response);
-      
+
       // Clear cart
       clearCart();
-      
+
       // Navigate to confirmation page
       navigate(`/order-confirmation/${response.order_id}`);
-      
     } catch (error) {
       console.error('Error placing order:', error);
       toast({
-        title: "Order Failed",
-        description: error instanceof Error ? error.message : "There was a problem placing your order. Please try again.",
-        variant: "destructive"
+        title: 'Order Failed',
+        description: error instanceof Error ? error.message : 'There was a problem placing your order. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsProcessing(false);
     }
   };
-  
+
   if (cartItems.length === 0) {
     return null; // Return early while redirecting
   }
-  
+
   return (
     <ProtectedRoute>
-      <Navbar />
-      <main className="page-container pt-24">
-        <button
-          onClick={() => navigate('/cart')}
-          className="inline-flex items-center text-muted-foreground hover:text-primary transition-colors mb-6"
-        >
-          <ChevronLeft className="mr-2 h-4 w-4" /> Back to Cart
-        </button>
-        
-        <h1 className="text-3xl font-serif mb-8">Checkout</h1>
-        
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Checkout form */}
-          <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-8">
-            {/* Contact information */}
-            <div className="bg-white border border-border rounded-lg p-6">
-              <h2 className="text-lg font-medium mb-4">Contact Information</h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2 sm:col-span-2">
-                  <label htmlFor="name" className="block text-sm font-medium">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={customerInfo.name}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <label htmlFor="email" className="block text-sm font-medium">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={customerInfo.email}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <label htmlFor="phone" className="block text-sm font-medium">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    name="phone"
-                    value={customerInfo.phone}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            {/* Delivery method */}
-            <div className="bg-white border border-border rounded-lg p-6">
-              <h2 className="text-lg font-medium mb-4">Delivery Method</h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label 
-                  className={`flex items-start p-4 border rounded-md cursor-pointer transition-all ${
-                    deliveryMethod === 'delivery' 
-                      ? 'border-primary bg-primary/5 ring-2 ring-primary/10' 
-                      : 'border-input hover:border-primary/50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="deliveryMethod"
-                    value="delivery"
-                    checked={deliveryMethod === 'delivery'}
-                    onChange={() => setDeliveryMethod('delivery')}
-                    className="sr-only"
-                  />
-                  <div className="mr-4 mt-0.5">
-                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                      deliveryMethod === 'delivery' ? 'border-primary' : 'border-muted-foreground'
-                    }`}>
-                      {deliveryMethod === 'delivery' && (
-                        <div className="w-3 h-3 rounded-full bg-primary" />
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center">
-                      <Truck className="h-4 w-4 mr-2" />
-                      <span className="font-medium">Home Delivery</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Delivery within 2-3 days
-                    </p>
-                  </div>
-                </label>
-                
-                <label 
-                  className={`flex items-start p-4 border rounded-md cursor-pointer transition-all ${
-                    deliveryMethod === 'pickup' 
-                      ? 'border-primary bg-primary/5 ring-2 ring-primary/10' 
-                      : 'border-input hover:border-primary/50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="deliveryMethod"
-                    value="pickup"
-                    checked={deliveryMethod === 'pickup'}
-                    onChange={() => setDeliveryMethod('pickup')}
-                    className="sr-only"
-                  />
-                  <div className="mr-4 mt-0.5">
-                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                      deliveryMethod === 'pickup' ? 'border-primary' : 'border-muted-foreground'
-                    }`}>
-                      {deliveryMethod === 'pickup' && (
-                        <div className="w-3 h-3 rounded-full bg-primary" />
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center">
-                      <Store className="h-4 w-4 mr-2" />
-                      <span className="font-medium">Store Pickup</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Ready in 1-2 hours
-                    </p>
-                  </div>
-                </label>
-              </div>
-            </div>
-            
-            {/* Shipping address (only shown for delivery) */}
-            {deliveryMethod === 'delivery' && (
-              <div className="bg-white border border-border rounded-lg p-6 animate-fade-in">
-                <h2 className="text-lg font-medium mb-4">Shipping Address</h2>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2 sm:col-span-2">
-                    <label htmlFor="street" className="block text-sm font-medium">
-                      Street Address
-                    </label>
-                    <input
-                      type="text"
-                      id="street"
-                      name="address.street"
-                      value={customerInfo.address?.street || ''}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label htmlFor="city" className="block text-sm font-medium">
-                      City
-                    </label>
-                    <input
-                      type="text"
-                      id="city"
-                      name="address.city"
-                      value={customerInfo.address?.city || ''}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label htmlFor="state" className="block text-sm font-medium">
-                      State
-                    </label>
-                    <input
-                      type="text"
-                      id="state"
-                      name="address.state"
-                      value={customerInfo.address?.state || ''}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label htmlFor="postalCode" className="block text-sm font-medium">
-                      Postal Code
-                    </label>
-                    <input
-                      type="text"
-                      id="postalCode"
-                      name="address.postalCode"
-                      value={customerInfo.address?.postalCode || ''}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Payment information */}
-            <div className="bg-white border border-border rounded-lg p-6">
-              <h2 className="text-lg font-medium mb-4">Payment Information</h2>
-              <div className="flex items-center mb-4 text-sm text-muted-foreground">
-                <CreditCard className="h-4 w-4 mr-2" />
-                <span>Payment will be collected upon {deliveryMethod === 'delivery' ? 'delivery' : 'pickup'}</span>
-              </div>
-              
-              <div className="flex items-center text-green-600 text-sm">
-                <Check className="h-4 w-4 mr-2" />
-                <span>Pay with cash or card</span>
-              </div>
-            </div>
-            
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="page-container">
+          <div className="content-container">
             <button
-              type="submit"
-              disabled={isProcessing}
-              className={`w-full bg-primary text-primary-foreground px-6 py-3 rounded-md font-medium transition-all hover:bg-primary/90 relative ${
-                isProcessing ? 'opacity-70 cursor-not-allowed' : 'btn-hover'
-              }`}
+              onClick={() => navigate('/cart')}
+              className="flex items-center text-muted-foreground hover:text-foreground mb-10 text-lg"
             >
-              {isProcessing ? 'Processing Order...' : 'Complete Order'}
+              <ChevronLeft className="h-6 w-6 mr-2" />
+              Back to Cart
             </button>
-          </form>
-          
-          {/* Order summary */}
-          <div className="lg:col-span-1">
-            <div className="bg-white border border-border rounded-lg p-6 sticky top-24">
-              <h2 className="text-lg font-medium mb-4">Order Summary</h2>
-              
-              <div className="divide-y">
-                {cartItems.map((item) => (
-                  <div key={item.product.id} className="py-3 flex items-center">
-                    <div className="relative h-16 w-16 rounded-md overflow-hidden bg-muted mr-3 flex-shrink-0">
-                      <img
-                        src={item.product.image}
-                        alt={item.product.name}
-                        className="object-cover h-full w-full"
+
+            <h1 className="text-5xl font-serif mb-12">Checkout</h1>
+
+            <div className="grid gap-12 md:grid-cols-[1fr,400px]">
+              <div className="space-y-10">
+                {/* Delivery Method */}
+                <div className="bg-card p-8 rounded-xl shadow-md">
+                  <h2 className="text-3xl font-serif font-semibold mb-6">Delivery Method</h2>
+                  <div className="grid gap-6">
+                    <button
+                      className={`flex items-center justify-between p-6 rounded-lg border-2 ${
+                        deliveryMethod === 'delivery'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      onClick={() => setDeliveryMethod('delivery')}
+                    >
+                      <div className="flex items-center">
+                        <Truck className="h-7 w-7 mr-4" />
+                        <div className="text-left">
+                          <div className="font-medium text-xl">Home Delivery</div>
+                          <div className="text-lg text-muted-foreground">
+                            Delivered to your address
+                          </div>
+                        </div>
+                      </div>
+                      {deliveryMethod === 'delivery' && (
+                        <Check className="h-7 w-7 text-primary" />
+                      )}
+                    </button>
+
+                    <button
+                      className={`flex items-center justify-between p-6 rounded-lg border-2 ${
+                        deliveryMethod === 'pickup'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      onClick={() => setDeliveryMethod('pickup')}
+                    >
+                      <div className="flex items-center">
+                        <Store className="h-7 w-7 mr-4" />
+                        <div className="text-left">
+                          <div className="font-medium text-xl">Store Pickup</div>
+                          <div className="text-lg text-muted-foreground">
+                            Collect from our store
+                          </div>
+                        </div>
+                      </div>
+                      {deliveryMethod === 'pickup' && (
+                        <Check className="h-7 w-7 text-primary" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Customer Information */}
+                <div className="bg-card p-8 rounded-xl shadow-md">
+                  <h2 className="text-3xl font-serif font-semibold mb-6">Customer Information</h2>
+                  <div className="grid gap-6">
+                    <div>
+                      <label className="block text-lg font-medium mb-2">Name</label>
+                      <input
+                        type="text"
+                        value={customerInfo.name}
+                        onChange={(e) =>
+                          setCustomerInfo((prev) => ({ ...prev, name: e.target.value }))
+                        }
+                        className="w-full p-4 rounded-lg border border-border text-lg"
+                        required
                       />
-                      <div className="absolute top-0 right-0 bg-primary/90 w-5 h-5 flex items-center justify-center text-xs text-primary-foreground font-medium">
-                        {item.quantity}
+                    </div>
+                    <div>
+                      <label className="block text-lg font-medium mb-2">Email</label>
+                      <input
+                        type="email"
+                        value={customerInfo.email}
+                        onChange={(e) =>
+                          setCustomerInfo((prev) => ({ ...prev, email: e.target.value }))
+                        }
+                        className="w-full p-4 rounded-lg border border-border text-lg"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-lg font-medium mb-2">Phone</label>
+                      <input
+                        type="tel"
+                        value={customerInfo.phone}
+                        onChange={(e) =>
+                          setCustomerInfo((prev) => ({ ...prev, phone: e.target.value }))
+                        }
+                        className="w-full p-4 rounded-lg border border-border text-lg"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delivery Address */}
+                {deliveryMethod === 'delivery' && (
+                  <div className="bg-card p-8 rounded-xl shadow-md">
+                    <h2 className="text-3xl font-serif font-semibold mb-6">Delivery Address</h2>
+                    <GoogleMapAddress
+                      apiKey={GOOGLE_MAPS_API_KEY}
+                      initialAddress={customerInfo.address}
+                      onAddressSelect={(address) =>
+                        setCustomerInfo((prev) => ({
+                          ...prev,
+                          address: {
+                            street: address.street,
+                            city: address.city,
+                            state: address.state,
+                            postalCode: address.postalCode,
+                            lat: address.lat,
+                            lng: address.lng,
+                          },
+                        }))
+                      }
+                    />
+                    <div className="mt-6 grid gap-6">
+                      <div>
+                        <label className="block text-lg font-medium mb-2">Street Address</label>
+                        <input
+                          type="text"
+                          value={customerInfo.address.street}
+                          onChange={(e) =>
+                            setCustomerInfo((prev) => ({
+                              ...prev,
+                              address: { ...prev.address, street: e.target.value },
+                            }))
+                          }
+                          className="w-full p-4 rounded-lg border border-border text-lg"
+                          required
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-lg font-medium mb-2">City</label>
+                          <input
+                            type="text"
+                            value={customerInfo.address.city}
+                            onChange={(e) =>
+                              setCustomerInfo((prev) => ({
+                                ...prev,
+                                address: { ...prev.address, city: e.target.value },
+                              }))
+                            }
+                            className="w-full p-4 rounded-lg border border-border text-lg"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-lg font-medium mb-2">State</label>
+                          <input
+                            type="text"
+                            value={customerInfo.address.state}
+                            onChange={(e) =>
+                              setCustomerInfo((prev) => ({
+                                ...prev,
+                                address: { ...prev.address, state: e.target.value },
+                              }))
+                            }
+                            className="w-full p-4 rounded-lg border border-border text-lg"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-lg font-medium mb-2">Postal Code</label>
+                        <input
+                          type="text"
+                          value={customerInfo.address.postalCode}
+                          onChange={(e) =>
+                            setCustomerInfo((prev) => ({
+                              ...prev,
+                              address: { ...prev.address, postalCode: e.target.value },
+                            }))
+                          }
+                          className="w-full p-4 rounded-lg border border-border text-lg"
+                          required
+                        />
                       </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <h4 className="text-sm font-medium truncate">{item.product.name}</h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {formatCurrency(item.product.price)} × {item.quantity}
-                      </p>
+                  </div>
+                )}
+
+                {/* Payment information */}
+                <div className="bg-card p-8 rounded-xl shadow-md">
+                  <h2 className="text-3xl font-serif font-semibold mb-6">Payment Information</h2>
+                  <div className="flex items-center mb-6 text-lg text-muted-foreground">
+                    <CreditCard className="h-6 w-6 mr-3" />
+                    <span>Payment will be collected upon {deliveryMethod === 'delivery' ? 'delivery' : 'pickup'}</span>
+                  </div>
+
+                  <div className="flex items-center text-green-600 text-lg">
+                    <Check className="h-6 w-6 mr-3" />
+                    <span>Pay with cash or card</span>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isProcessing}
+                  className={`w-full bg-primary text-primary-foreground px-8 py-6 rounded-lg text-xl font-medium transition-all hover:bg-primary/90 relative ${
+                    isProcessing ? 'opacity-70 cursor-not-allowed' : 'btn-hover'
+                  }`}
+                  onClick={handleSubmit}
+                >
+                  {isProcessing ? 'Processing Order...' : 'Complete Order'}
+                </button>
+              </div>
+
+              {/* Order summary */}
+              <div className="lg:col-span-1">
+                <div className="bg-white border border-border rounded-xl p-8 sticky top-24 shadow-md">
+                  <h2 className="text-2xl font-medium mb-6">Order Summary</h2>
+
+                  <div className="divide-y">
+                    {cartItems.map((item) => (
+                      <div key={item.product.id} className="py-4 flex items-center">
+                        <div className="relative h-20 w-20 rounded-lg overflow-hidden bg-muted mr-4 flex-shrink-0">
+                          <img
+                            src={item.product.image}
+                            alt={item.product.name}
+                            className="object-cover h-full w-full"
+                          />
+                          <div className="absolute top-0 right-0 bg-primary/90 w-6 h-6 flex items-center justify-center text-sm text-primary-foreground font-medium">
+                            {item.quantity}
+                          </div>
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-lg font-medium truncate">{item.product.name}</h4>
+                          <p className="text-base text-muted-foreground mt-1">
+                            {formatCurrency(item.product.price)} × {item.quantity}
+                          </p>
+                        </div>
+                        <div className="text-lg font-medium">
+                          {formatCurrency(item.product.price * item.quantity)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 space-y-4 text-lg border-t pt-6">
+                    <div className="flex justify-between py-2">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span className="font-medium">{formatCurrency(cartTotal)}</span>
                     </div>
-                    <div className="text-sm font-medium">
-                      {formatCurrency(item.product.price * item.quantity)}
+
+                    <div className="flex justify-between py-2">
+                      <span className="text-muted-foreground">Shipping</span>
+                      <span className="font-medium">
+                        {shipping === 0 ? 'Free' : formatCurrency(shipping)}
+                      </span>
+                    </div>
+
+                    <div className="border-t pt-4 mt-4 flex justify-between text-xl">
+                      <span className="font-medium">Total</span>
+                      <span className="font-semibold">{formatCurrency(orderTotal)}</span>
                     </div>
                   </div>
-                ))}
-              </div>
-              
-              <div className="mt-4 space-y-3 text-sm border-t pt-4">
-                <div className="flex justify-between py-2">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">{formatCurrency(cartTotal)}</span>
-                </div>
-                
-                <div className="flex justify-between py-2">
-                  <span className="text-muted-foreground">Shipping</span>
-                  <span className="font-medium">
-                    {shipping === 0 ? 'Free' : formatCurrency(shipping)}
-                  </span>
-                </div>
-                
-                <div className="border-t pt-3 mt-3 flex justify-between text-base">
-                  <span className="font-medium">Total</span>
-                  <span className="font-semibold">{formatCurrency(orderTotal)}</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </main>
-      <Footer />
+        <Footer />
+      </div>
     </ProtectedRoute>
   );
 };

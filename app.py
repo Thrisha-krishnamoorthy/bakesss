@@ -1,15 +1,12 @@
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify
 import mysql.connector
 from mysql.connector import Error
 import bcrypt
 from flask_cors import CORS
+import os
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {
-    "origins": ["http://192.168.1.5:8080"],
-    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    "allow_headers": ["Content-Type", "Authorization"]
-}})
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Database configuration
 db_config = {
@@ -34,6 +31,7 @@ def get_db_connection():
 @app.route('/register', methods=['POST'])
 def register_user():
     data = request.get_json()
+
     # Validate required fields
     required_fields = ['name', 'email', 'phone', 'password']
     if not all(field in data for field in required_fields):
@@ -46,36 +44,47 @@ def register_user():
     role = data.get('role', 'user')  # Default role is 'user'
     password = data.get('password')
 
+    # Validate role
+    if role not in ['user', 'admin']:
+        return jsonify({"error": "Invalid role"}), 400
+
     # Hash the password
     salt = bcrypt.gensalt()
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
 
-    # Check if the email already exists
+    # Check if the email or phone already exists
     connection = get_db_connection()
     if not connection:
         return jsonify({"error": "Database connection failed"}), 500
 
     cursor = connection.cursor(dictionary=True)
-    cursor.execute("SELECT email FROM users WHERE email = %s", (email,))
+    cursor.execute("SELECT email, phone FROM users WHERE email = %s OR phone = %s", (email, phone))
     existing_user = cursor.fetchone()
 
     if existing_user:
         cursor.close()
         connection.close()
-        return jsonify({"error": f"User with email {email} already exists"}), 400
+        if existing_user.get('email') == email:
+            return jsonify({"error": f"User with email {email} already exists"}), 400
+        elif existing_user.get('phone') == phone:
+            return jsonify({"error": f"User with phone {phone} already exists"}), 400
 
     # Insert the new user
-    query = "INSERT INTO users (name, email, phone, address, role, password_hash) VALUES (%s, %s, %s, %s, %s, %s)"
+    query = """
+    INSERT INTO users (name, email, phone, address, role, password_hash)
+    VALUES (%s, %s, %s, %s, %s, %s)
+    """
     values = (name, email, phone, address, role, hashed_password.decode('utf-8'))  # Store the hashed password
 
     try:
         cursor.execute(query, values)
         connection.commit()
+        return jsonify({"message": "User registered successfully"}), 201
+    except mysql.connector.Error as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
         cursor.close()
         connection.close()
-        return jsonify({"message": "User registered successfully"}), 201
-    except Error as e:
-        return jsonify({"error": str(e)}), 500
 
 # Additional routes for login, order placement, etc. can be added here
 
@@ -299,8 +308,76 @@ def add_product():
         return jsonify({"message": "Product added successfully"}), 201
     except Error as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/orders/user/email/<string:email>', methods=['GET'])
+def fetch_orders_by_email(email):
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({"error": "Database connection failed"}), 500
 
-# Route to get order details
+    try:
+        cursor = connection.cursor(dictionary=True)
+        
+        # First get the user_id from email
+        user_query = "SELECT user_id FROM users WHERE email = %s"
+        cursor.execute(user_query, (email,))
+        user_result = cursor.fetchone()
+        
+        if not user_result:
+            return jsonify({"error": "User not found"}), 404
+            
+        user_id = user_result['user_id']
+        
+        # Then get the orders using the user_id with more product details
+        query = """
+        SELECT o.order_id, o.order_status, o.total_price, o.payment_status, 
+               oi.product_id, p.name AS product_name, p.status AS product_status,
+               p.image_url, oi.quantity, oi.price as item_price,
+               o.created_at as date
+        FROM orders o
+        JOIN order_items oi ON o.order_id = oi.order_id
+        JOIN products p ON oi.product_id = p.product_id
+        WHERE o.user_id = %s
+        ORDER BY o.created_at DESC
+        """
+        cursor.execute(query, (user_id,))
+        order_details = cursor.fetchall()
+        
+        if not order_details:
+            return jsonify([]), 200
+            
+        # Process the results to group by order_id
+        orders = {}
+        for item in order_details:
+            order_id = item['order_id']
+            if order_id not in orders:
+                orders[order_id] = {
+                    'order_id': order_id,
+                    'order_status': item['order_status'],
+                    'total_price': float(item['total_price']),
+                    'payment_status': item['payment_status'],
+                    'date': item['date'].strftime('%Y-%m-%d %H:%M:%S'),
+                    'products': []
+                }
+            
+            orders[order_id]['products'].append({
+                'product_id': item['product_id'],
+                'product_name': item['product_name'],
+                'product_status': item['product_status'],
+                'image_url': item['image_url'],
+                'quantity': item['quantity'],
+                'price': float(item['item_price'])
+            })
+        
+        return jsonify(list(orders.values())), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+# Route to get order details by ID
 @app.route('/orders/details/<int:order_id>', methods=['GET'])
 def fetch_order_details(order_id):
     connection = get_db_connection()
@@ -372,202 +449,26 @@ def fetch_order_details(order_id):
         cursor.close()
         connection.close()
 
-# Route to get all orders for a user by email
-@app.route('/user/orders', methods=['GET'])
-def get_user_orders():
-    email = request.args.get('email')
-    if not email:
-        return jsonify({"error": "Email parameter is required"}), 400
-    
-    connection = get_db_connection()
-    if not connection:
-        return jsonify({"error": "Database connection failed"}), 500
 
-    try:
-        cursor = connection.cursor(dictionary=True)
-        
-        # First get the user_id
-        cursor.execute("SELECT user_id FROM users WHERE email = %s", (email,))
-        user = cursor.fetchone()
-        
-        if not user:
-            return jsonify({"error": "User not found"}), 404
-            
-        user_id = user['user_id']
-        
-        # Get all orders for this user
-        query = """
-        SELECT order_id, order_status, total_price, payment_status, 
-               created_at as date
-        FROM orders
-        WHERE user_id = %s
-        ORDER BY created_at DESC
-        """
-        cursor.execute(query, (user_id,))
-        orders = cursor.fetchall()
-        
-        return jsonify(orders), 200
-
-    except Error as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        cursor.close()
-        connection.close()
-
-# New route to get user_id from email
-@app.route('/user', methods=['GET', 'OPTIONS'])
-def get_user_by_email():
-    if request.method == 'OPTIONS':
-        response = make_response()
-        response.headers.add('Access-Control-Allow-Origin', 'http://192.168.1.5:8080')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,OPTIONS')
-        return response
-
-    email = request.args.get('email')
-    if not email:
-        return jsonify({"error": "Email parameter is required"}), 400
-    
-    connection = get_db_connection()
-    if not connection:
-        return jsonify({"error": "Database connection failed"}), 500
-
-    try:
-        cursor = connection.cursor(dictionary=True)
-        
-        cursor.execute("SELECT user_id, name, email, role FROM users WHERE email = %s", (email,))
-        user = cursor.fetchone()
-        
-        if not user:
-            return jsonify({"error": "User not found"}), 404
-            
-        response = make_response(jsonify(user))
-        response.headers.add('Access-Control-Allow-Origin', 'http://192.168.1.5:8080')
-        return response, 200
-
-    except Error as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        cursor.close()
-        connection.close()
-
-# Route to get all orders for a user by user_id
-@app.route('/orders/user/<int:user_id>', methods=['GET'])
-def fetch_orders_by_user(user_id):
-    connection = get_db_connection()
-    if not connection:
-        return jsonify({"error": "Database connection failed"}), 500
-
-    try:
-        cursor = connection.cursor(dictionary=True)
-        
-        query = """
-        SELECT o.order_id, o.order_status, o.total_price, o.payment_status, 
-               oi.product_id, p.name AS product_name, p.status AS product_status,
-               o.created_at as date
-        FROM orders o
-        JOIN order_items oi ON o.order_id = oi.order_id
-        JOIN products p ON oi.product_id = p.product_id
-        WHERE o.user_id = %s
-        ORDER BY o.created_at DESC
-        """
-        cursor.execute(query, (user_id,))
-        order_details = cursor.fetchall()
-
-        if not order_details:
-            return jsonify([]), 200  # Empty list for no orders
-
-        orders_dict = {}
-        for row in order_details:
-            if row["order_id"] not in orders_dict:
-                orders_dict[row["order_id"]] = {
-                    "order_id": row["order_id"],
-                    "order_status": row["order_status"],
-                    "total_price": row["total_price"],
-                    "payment_status": row["payment_status"],
-                    "date": row["date"].isoformat() if row["date"] else None,
-                    "products": []
-                }
-            
-            orders_dict[row["order_id"]]["products"].append({
-                "product_id": row["product_id"],
-                "product_name": row["product_name"],
-                "product_status": row["product_status"]
-            })
-
-        return jsonify(list(orders_dict.values())), 200
-
-    except Error as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        cursor.close()
-        connection.close()
-
-# Route to get all orders for a user by email
-@app.route('/orders/user/email/<string:email>', methods=['GET'])
-def fetch_orders_by_email(email):
-    connection = get_db_connection()
-    if not connection:
-        return jsonify({"error": "Database connection failed"}), 500
-
-    try:
-        cursor = connection.cursor(dictionary=True)
-        
-        # First get the user_id from email
-        user_query = "SELECT user_id FROM users WHERE email = %s"
-        cursor.execute(user_query, (email,))
-        user_result = cursor.fetchone()
-        
-        if not user_result:
-            return jsonify({"error": "User not found"}), 404
-            
-        user_id = user_result['user_id']
-        
-        # Then get the orders using the user_id
-        query = """
-        SELECT o.order_id, o.order_status, o.total_price, o.payment_status, 
-               oi.product_id, p.name AS product_name, p.status AS product_status,
-               o.created_at as date
-        FROM orders o
-        JOIN order_items oi ON o.order_id = oi.order_id
-        JOIN products p ON oi.product_id = p.product_id
-        WHERE o.user_id = %s
-        ORDER BY o.created_at DESC
-        """
-        cursor.execute(query, (user_id,))
-        order_details = cursor.fetchall()
-        
-        if not order_details:
-            return jsonify([]), 200
-            
-        # Process the results to group by order_id
-        orders = {}
-        for item in order_details:
-            order_id = item['order_id']
-            if order_id not in orders:
-                orders[order_id] = {
-                    'order_id': order_id,
-                    'order_status': item['order_status'],
-                    'total_price': float(item['total_price']),
-                    'payment_status': item['payment_status'],
-                    'date': item['date'].strftime('%Y-%m-%d %H:%M:%S'),
-                    'products': []
-                }
-            
-            orders[order_id]['products'].append({
-                'product_id': item['product_id'],
-                'product_name': item['product_name'],
-                'product_status': item['product_status']
-            })
-        
-        return jsonify(list(orders.values())), 200
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        cursor.close()
-        connection.close()
 
 if __name__ == '__main__':
     print("Starting Flask server on port 5000...")
+    # For development, we'll use HTTP to avoid certificate issues
     app.run(debug=True, host='0.0.0.0', port=5000)
+    
+    # Uncomment this to use HTTPS once you have proper certificates
+    # cert_path = 'flask_certs/cert.pem'
+    # key_path = 'flask_certs/key.pem'
+    # 
+    # if os.path.exists(cert_path) and os.path.exists(key_path):
+    #     print("Using SSL certificates for HTTPS")
+    #     app.run(
+    #         debug=True, 
+    #         host='0.0.0.0', 
+    #         port=5000,
+    #         ssl_context=(cert_path, key_path)
+    #     )
+    # else:
+    #     print("SSL certificates not found. Running in HTTP mode.")
+    #     print("To enable HTTPS, run 'python generate_flask_cert.py' to create certificates.")
+    #     app.run(debug=True, host='0.0.0.0', port=5000)

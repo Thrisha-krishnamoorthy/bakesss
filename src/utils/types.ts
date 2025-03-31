@@ -1,4 +1,3 @@
-
 export interface Product {
   id: string; // Will map to product_id in database
   name: string;
@@ -41,6 +40,8 @@ export interface Customer {
     city: string;
     state: string;
     postalCode: string;
+    lat?: number;
+    lng?: number;
   };
 }
 

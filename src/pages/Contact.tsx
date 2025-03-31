@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -10,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import { submitContactForm } from '@/utils/api'; // Import the submitContactForm utility function
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -30,6 +30,8 @@ type FormValues = z.infer<typeof formSchema>;
 
 const Contact = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [message, setMessage] = useState('');
   const { toast } = useToast();
   
   const form = useForm<FormValues>({
@@ -46,25 +48,16 @@ const Contact = () => {
     setIsSubmitting(true);
     
     try {
-      // Connect to the Flask backend
-      const response = await fetch('http://localhost:5000/contact', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to send message');
-      }
+      // Connect to the Flask backend using our API utility
+      const result = await submitContactForm(data);
+      setMessage(result.message);
+      setIsSuccess(true);
+      form.reset();
       
       toast({
         title: "Message sent!",
         description: "Thank you for your message. We'll get back to you soon.",
       });
-      
-      form.reset();
     } catch (error) {
       console.error(error);
       toast({

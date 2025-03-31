@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, ArrowRight, UserPlus } from 'lucide-react';
@@ -30,7 +29,51 @@ const Index = () => {
     return shuffled.slice(0, count);
   };
   
-  const featuredProducts = getRandomProducts(allProducts, 3);
+  // Always ensure we have exactly 3 featured products
+  let featuredProducts = getRandomProducts(allProducts, 3);
+  
+  // If we don't have enough products, create placeholder products to fill the grid
+  if (featuredProducts.length < 3) {
+    const placeholderProducts: Product[] = [
+      {
+        id: 'placeholder-1',
+        name: 'Chocolate Chip Cookies',
+        description: 'Classic chocolate chip cookies made with premium chocolate',
+        price: 12.99,
+        category: 'Cookies',
+        image: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e',
+        featured: true,
+        inStock: true,
+        quantity: 20
+      },
+      {
+        id: 'placeholder-2',
+        name: 'Artisan Sourdough Bread',
+        description: 'Traditional sourdough bread with a crispy crust',
+        price: 8.99,
+        category: 'Breads',
+        image: 'https://images.unsplash.com/photo-1585478259715-1c195a3c7fbc',
+        featured: true,
+        inStock: true,
+        quantity: 15
+      },
+      {
+        id: 'placeholder-3',
+        name: 'Blueberry Muffins',
+        description: 'Fluffy muffins packed with fresh blueberries',
+        price: 9.99,
+        category: 'Pastries',
+        image: 'https://images.unsplash.com/photo-1607958996333-41aef7caefaa',
+        featured: true,
+        inStock: true,
+        quantity: 25
+      }
+    ];
+    
+    // Add only as many placeholder products as needed to reach 3 total
+    const neededPlaceholders = 3 - featuredProducts.length;
+    featuredProducts = [...featuredProducts, ...placeholderProducts.slice(0, neededPlaceholders)];
+  }
   
   useEffect(() => {
     // Preload hero image
@@ -77,7 +120,7 @@ const Index = () => {
       <main>
         {/* Hero section */}
         <section 
-          className="relative h-screen min-h-[600px] flex items-center justify-center overflow-hidden"
+          className="relative h-screen min-h-[800px] flex items-center justify-center overflow-hidden w-full"
           aria-label="Hero banner"
         >
           <div 
@@ -90,35 +133,35 @@ const Index = () => {
           />
           <div className="absolute inset-0 bg-black/20" />
           
-          <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
-            <span className="inline-block bg-primary/90 text-primary-foreground text-sm font-medium py-1 px-3 rounded-full mb-6 backdrop-blur-sm animate-fade-in">
+          <div className="relative z-10 text-center px-6 sm:px-8 lg:px-12 max-w-6xl mx-auto">
+            <span className="inline-block bg-primary/90 text-primary-foreground text-lg font-medium py-2 px-5 rounded-full mb-8 backdrop-blur-sm animate-fade-in">
               Handcrafted with love
             </span>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif font-light text-white mb-6 animate-fade-in">
+            <h1 className="text-6xl md:text-7xl lg:text-8xl font-serif font-light text-white mb-10 animate-fade-in">
               Artisanal Baked Goods for Every Occasion
             </h1>
-            <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto animate-fade-in">
+            <p className="text-2xl md:text-3xl text-white/90 mb-12 max-w-4xl mx-auto animate-fade-in">
               Delicious, handcrafted breads and pastries made with the finest ingredients and traditional techniques.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-8 animate-fade-in">
               <Link 
                 to="/shop" 
-                className="bg-primary text-primary-foreground px-6 py-3 rounded-md font-medium transition-all hover:bg-primary/90 btn-hover flex items-center"
+                className="bg-primary text-primary-foreground px-10 py-6 rounded-xl font-medium transition-all hover:bg-primary/90 btn-hover flex items-center text-2xl"
               >
-                Shop Now <ArrowRight className="ml-2 h-4 w-4" />
+                Shop Now <ArrowRight className="ml-3 h-6 w-6" />
               </Link>
               {!isAuthenticated && (
                 <Link
                   to="/register"
-                  className="bg-white/20 backdrop-blur-sm text-white px-6 py-3 rounded-md font-medium transition-all hover:bg-white/30 btn-hover flex items-center"
+                  className="bg-white/20 backdrop-blur-sm text-white px-10 py-6 rounded-xl font-medium transition-all hover:bg-white/30 btn-hover flex items-center text-2xl"
                 >
-                  Create Account <UserPlus className="ml-2 h-4 w-4" />
+                  Create Account <UserPlus className="ml-3 h-6 w-6" />
                 </Link>
               )}
               {isAuthenticated ? (
                 <Link
                   to="/about"
-                  className="bg-white/20 backdrop-blur-sm text-white px-6 py-3 rounded-md font-medium transition-all hover:bg-white/30 btn-hover"
+                  className="bg-white/20 backdrop-blur-sm text-white px-10 py-6 rounded-xl font-medium transition-all hover:bg-white/30 btn-hover text-2xl"
                 >
                   Our Story
                 </Link>
@@ -128,65 +171,69 @@ const Index = () => {
         </section>
 
         {/* Featured products section */}
-        <section className="page-container">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="section-title">Featured Products</h2>
-            <Link 
-              to="/shop" 
-              className="text-sm font-medium text-primary flex items-center hover:underline"
-            >
-              View all <ChevronRight className="h-4 w-4 ml-1" />
-            </Link>
-          </div>
-          
-          <div className="product-grid">
-            {isLoading ? (
-              // Show loading placeholders
-              Array(3).fill(0).map((_, index) => (
-                <div key={index} className="bg-muted animate-pulse rounded-lg p-4 h-64" />
-              ))
-            ) : featuredProducts.length > 0 ? (
-              featuredProducts.map(product => (
-                <ProductCard key={product.id} product={product} />
-              ))
-            ) : (
-              <div className="col-span-full text-center py-8">
-                <p className="text-muted-foreground">No products available right now.</p>
-              </div>
-            )}
+        <section className="page-container py-20">
+          <div className="content-container">
+            <div className="flex items-center justify-between mb-12">
+              <h2 className="text-5xl font-serif font-light text-primary">Featured Products</h2>
+              <Link 
+                to="/shop" 
+                className="text-xl font-medium text-primary flex items-center hover:underline"
+              >
+                View all <ChevronRight className="h-5 w-5 ml-2" />
+              </Link>
+            </div>
+            
+            <div className="featured-products-grid gap-8 xl:gap-10">
+              {isLoading ? (
+                // Show loading placeholders
+                Array(3).fill(0).map((_, index) => (
+                  <div key={index} className="bg-muted animate-pulse rounded-lg p-4 h-64" />
+                ))
+              ) : featuredProducts.length > 0 ? (
+                featuredProducts.slice(0, 3).map(product => (
+                  <ProductCard key={product.id} product={product} />
+                ))
+              ) : (
+                <div className="col-span-full text-center py-8">
+                  <p className="text-muted-foreground">No products available right now.</p>
+                </div>
+              )}
+            </div>
           </div>
         </section>
 
         {/* Categories section */}
         <section className="page-container">
-          <h2 className="section-title">Categories</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {availableCategories.map((category) => (
-              <Link
-                key={category.id}
-                to={`/shop?category=${encodeURIComponent(category.id)}`}
-                className="relative overflow-hidden rounded-lg aspect-[4/3] group hover:shadow-lg transition-all"
-              >
-                <div 
-                  className="absolute inset-0 bg-black opacity-40 group-hover:opacity-30 transition-opacity" 
-                />
-                <div 
-                  className="absolute inset-0 bg-cover bg-center transform transition-transform duration-700 group-hover:scale-110"
-                  style={{ backgroundImage: `url(${category.image})` }}
-                />
-                <div className="absolute inset-0 flex items-center justify-center p-4">
-                  <h3 className="text-white text-2xl font-medium text-center">
-                    {category.name}
-                  </h3>
-                </div>
-              </Link>
-            ))}
+          <div className="content-container">
+            <h2 className="section-title">Categories</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {availableCategories.map((category) => (
+                <Link
+                  key={category.id}
+                  to={`/shop?category=${encodeURIComponent(category.id)}`}
+                  className="relative overflow-hidden rounded-lg aspect-[4/3] group hover:shadow-lg transition-all"
+                >
+                  <div 
+                    className="absolute inset-0 bg-black opacity-40 group-hover:opacity-30 transition-opacity" 
+                  />
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center transform transition-transform duration-700 group-hover:scale-110"
+                    style={{ backgroundImage: `url(${category.image})` }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center p-4">
+                    <h3 className="text-white text-2xl font-medium text-center">
+                      {category.name}
+                    </h3>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         </section>
 
         {/* About section */}
         <section className="py-16 px-4 sm:px-6 lg:px-8 bg-accent mt-16">
-          <div className="max-w-7xl mx-auto">
+          <div className="content-container">
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div>
                 <span className="text-sm font-medium text-muted-foreground block mb-2">Our Approach</span>
@@ -233,7 +280,7 @@ const Index = () => {
         </section>
 
         {/* Testimonials section */}
-        <section className="page-container">
+        {/* <section className="page-container">
           <h2 className="section-title text-center">What Our Customers Say</h2>
           <div className="grid gap-8 md:grid-cols-3 mt-8">
             {[
@@ -270,9 +317,9 @@ const Index = () => {
               </div>
             ))}
           </div>
-        </section>
+        </section> */}
       </main>
-      <Footer />
+      {/* <Footer /> */}
     </>
   );
 };

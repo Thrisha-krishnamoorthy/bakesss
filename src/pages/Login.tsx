@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -53,20 +52,20 @@ const Login = () => {
   return (
     <>
       <Navbar />
-      <main className="page-container py-16 mt-16">
-        <div className="max-w-md mx-auto">
-          <Card>
-            <CardHeader className="space-y-1">
-              <CardTitle className="text-2xl font-serif">Login</CardTitle>
-              <CardDescription>
+      <main className="flex-1 flex items-center justify-center p-4 pt-32">
+        <div className="w-full max-w-md">
+          <Card className="bg-card border border-border rounded-lg shadow-md p-5">
+            <CardHeader className="text-center mb-4">
+              <CardTitle className="text-3xl font-serif font-bold mb-2">Login</CardTitle>
+              <CardDescription className="text-sm text-muted-foreground">
                 Enter your email and password to access your account
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               {error && (
-                <Alert variant="destructive" className="mb-4">
+                <Alert variant="destructive" className="mb-4 p-3 rounded-md">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription className="text-sm ml-2">{error}</AlertDescription>
                 </Alert>
               )}
               
@@ -76,21 +75,21 @@ const Login = () => {
                     control={form.control}
                     name="email"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
+                      <FormItem className="space-y-2">
+                        <FormLabel className="block text-sm font-medium mb-1">Email</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                               placeholder="name@example.com"
-                              className="pl-10"
+                              className="w-full p-2 pl-9 text-sm rounded-md border border-border focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
                               {...field}
                               required
                               type="email"
                             />
                           </div>
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-xs" />
                       </FormItem>
                     )}
                   />
@@ -99,39 +98,56 @@ const Login = () => {
                     control={form.control}
                     name="password"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
+                      <FormItem className="space-y-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <FormLabel className="block text-sm font-medium">Password</FormLabel>
+                          <Link
+                            to="/forgot-password"
+                            className="text-xs text-primary hover:underline"
+                          >
+                            Forgot password?
+                          </Link>
+                        </div>
                         <FormControl>
                           <div className="relative">
-                            <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                               placeholder="Enter your password"
-                              className="pl-10"
+                              className="w-full p-2 pl-9 text-sm rounded-md border border-border focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
                               {...field}
                               required
                               type="password"
                             />
                           </div>
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-xs" />
                       </FormItem>
                     )}
                   />
                   
                   <Button 
                     type="submit" 
-                    className="w-full"
+                    className={`w-full bg-primary text-primary-foreground p-2 rounded-md text-sm font-medium transition-all hover:bg-primary/90 ${
+                      isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
+                    }`}
                     disabled={isSubmitting}
                   >
-                    {isSubmitting ? 'Logging in...' : 'Login'}
+                    {isSubmitting ? (
+                      <div className="flex items-center justify-center">
+                        <AlertCircle className="h-4 w-4 animate-spin mr-2" />
+                        <span>Logging in...</span>
+                      </div>
+                    ) : (
+                      <span>Login</span>
+                    )}
                   </Button>
                 </form>
               </Form>
             </CardContent>
-            <CardFooter className="flex flex-col items-center">
-              <p className="text-center text-sm text-muted-foreground">
+            <CardFooter className="flex flex-col items-center pt-4 mt-2">
+              <p className="text-center text-sm">
                 Don't have an account?{' '}
-                <Link to="/register" className="text-primary hover:underline">
+                <Link to="/register" className="text-primary hover:underline font-medium">
                   Register here
                 </Link>
               </p>

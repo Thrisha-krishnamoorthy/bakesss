@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Check, ArrowRight, Truck, CalendarCheck, CakeSlice, PackageCheck, ShoppingBag, AlertCircle } from 'lucide-react';
@@ -9,16 +8,22 @@ import { useToast } from '../hooks/use-toast';
 import { fetchOrderDetails } from '../utils/api';
 import { formatCurrency } from '../utils/formatters';
 
+interface OrderProduct {
+  product_id: number;
+  product_name: string;
+  product_status: string;
+  image_url: string;
+  quantity: number;
+  price: number;
+}
+
 interface OrderDetail {
   order_id: number;
   order_status: 'order confirmation' | 'baked' | 'shipped' | 'delivered';
   total_price: number;
   payment_status: 'not paid' | 'advance paid' | 'full paid';
-  products: {
-    product_id: number;
-    product_name: string;
-    product_status: string;
-  }[];
+  date: string;
+  products: OrderProduct[];
 }
 
 const OrderDetails = () => {
@@ -143,7 +148,7 @@ const OrderDetails = () => {
               <div>
                 <h1 className="text-2xl font-serif mb-1">Order #{orderDetails.order_id}</h1>
                 <p className="text-sm text-muted-foreground">
-                  Placed on {new Date().toLocaleDateString()}
+                  Placed on {new Date(orderDetails.date).toLocaleDateString()}
                 </p>
               </div>
               <div className="flex items-center gap-4">
@@ -229,20 +234,33 @@ const OrderDetails = () => {
             </div>
             
             {/* Order items */}
-            <div className="mt-8">
-              <h2 className="text-lg font-medium mb-4">Order Items</h2>
-              <div className="border rounded-md divide-y">
-                {orderDetails.products.map((product) => (
-                  <div key={product.product_id} className="p-4 flex items-center">
-                    <div>
-                      <h3 className="font-medium">{product.product_name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Product ID: {product.product_id}
-                      </p>
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <h3 className="text-xl font-semibold mb-4">Order Items</h3>
+              {orderDetails?.products && orderDetails.products.length > 0 ? (
+                <div className="space-y-4">
+                  {orderDetails.products.map((product) => (
+                    <div key={product.product_id} className="flex items-center border-b pb-4">
+                      <div className="w-16 h-16 rounded-md overflow-hidden mr-4">
+                        <img 
+                          src={product.image_url || '/placeholder-product.jpg'} 
+                          alt={product.product_name} 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-lg">{product.product_name}</h4>
+                        <p className="text-gray-600">Status: {product.product_status}</p>
+                        <div className="flex justify-between mt-2">
+                          <span>Quantity: {product.quantity}</span>
+                          <span className="font-medium">{formatCurrency(product.price * product.quantity)}</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500">No items found for this order.</p>
+              )}
             </div>
             
             <div className="mt-8 text-center">

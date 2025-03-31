@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ShoppingBag, Package, CalendarCheck, Truck, CheckCheck } from 'lucide-react';
@@ -40,14 +39,17 @@ const MyOrders = () => {
         console.log('Fetching orders for user:', user.email);
         const data = await fetchUserOrders(user.email);
         console.log("Fetched orders data:", data);
+        
+        // The backend now returns properly formatted data
         setOrders(data);
       } catch (error) {
         console.error('Error fetching orders:', error);
         toast({
           title: "Error",
-          description: "Failed to load your orders. Please refresh the page.",
+          description: "Failed to load your orders. Please try again.",
           variant: "destructive"
         });
+        setOrders([]);
       } finally {
         setIsLoading(false);
       }

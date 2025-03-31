@@ -1,4 +1,3 @@
-
 import { Link } from 'react-router-dom';
 import { LogIn, LogOut, UserCircle } from 'lucide-react';
 import { Button } from './ui/button';
@@ -18,8 +17,8 @@ const AuthButton = () => {
   if (!isAuthenticated) {
     return (
       <Link to="/login">
-        <Button variant="outline" size="sm" className="gap-2">
-          <LogIn className="h-4 w-4" />
+        <Button variant="outline" size="lg" className="gap-3 text-xl py-6 px-8">
+          <LogIn className="h-6 w-6" />
           <span className="hidden md:inline">Login</span>
         </Button>
       </Link>
@@ -29,20 +28,20 @@ const AuthButton = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <UserCircle className="h-4 w-4" />
+        <Button variant="outline" size="lg" className="gap-3 text-xl py-6 px-8">
+          <UserCircle className="h-6 w-6" />
           <span className="hidden md:inline">{user?.name}</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel className="text-xl py-3">My Account</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
+        <DropdownMenuItem asChild className="text-lg py-3 cursor-pointer">
           <Link to="/orders" className="cursor-pointer w-full">
             My Orders
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
+        <DropdownMenuItem asChild className="text-lg py-3 cursor-pointer">
           <Link to="/profile" className="cursor-pointer w-full">
             Profile
           </Link>
@@ -50,9 +49,9 @@ const AuthButton = () => {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={logout}
-          className="cursor-pointer text-destructive focus:text-destructive"
+          className="cursor-pointer text-destructive focus:text-destructive text-lg py-3"
         >
-          <LogOut className="h-4 w-4 mr-2" />
+          <LogOut className="h-6 w-6 mr-2" />
           Logout
         </DropdownMenuItem>
       </DropdownMenuContent>
