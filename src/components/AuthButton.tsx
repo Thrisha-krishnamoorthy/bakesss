@@ -42,9 +42,9 @@ const AuthButton = () => {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild className="text-lg py-3 cursor-pointer">
-          <Link to="/profile" className="cursor-pointer w-full">
+          {/* <Link to="/profile" className="cursor-pointer w-full">
             Profile
-          </Link>
+          </Link> */}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem

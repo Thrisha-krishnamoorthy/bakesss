@@ -74,11 +74,58 @@ const ProductDetail = () => {
   }
   
   const handleQuantityChange = (newQuantity: number) => {
-    if (newQuantity < 1) return;
+    const isPastry = product?.category?.toLowerCase() === 'pastries';
+    if (newQuantity < (isPastry ? 0.25 : 1)) return;
     setQuantity(newQuantity);
   };
   
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value)) {
+      // Only allow decimal values for pastries
+      if (product?.category?.toLowerCase() !== 'pastries' && !Number.isInteger(value)) {
+        toast({
+          title: "Invalid quantity",
+          description: "Please enter a whole number quantity for this product",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Ensure minimum quantity
+      const isPastry = product?.category?.toLowerCase() === 'pastries';
+      if (value < (isPastry ? 0.25 : 1)) return;
+      
+      setQuantity(value);
+    }
+  };
+  
   const handleAddToCart = () => {
+    // Validate quantity before adding to cart
+    if (product?.category?.toLowerCase() !== 'pastries' && !Number.isInteger(quantity)) {
+      toast({
+        title: "Invalid quantity",
+        description: "Please enter a whole number quantity for this product",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Ensure minimum quantity based on category
+    const isPastry = product?.category?.toLowerCase() === 'pastries';
+    const minQuantity = isPastry ? 0.25 : 1;
+    
+    if (quantity < minQuantity) {
+      toast({
+        title: "Invalid quantity",
+        description: isPastry 
+          ? "Minimum quantity is 0.25 for pastries" 
+          : "Minimum quantity is 1",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     addToCart(product, quantity);
     toast({
       title: "Added to cart",
@@ -144,22 +191,54 @@ const ProductDetail = () => {
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">Quantity</h3>
                 <div className="flex items-center border border-input rounded-md w-fit">
                   <button
-                    onClick={() => handleQuantityChange(quantity - 1)}
+                    onClick={() => {
+                      const isPastry = product?.category?.toLowerCase() === 'pastries';
+                      handleQuantityChange(
+                        isPastry 
+                          ? Math.round((quantity - 0.25) * 100) / 100 
+                          : quantity - 1
+                      );
+                    }}
                     className="p-2 hover:bg-muted transition-colors"
                     aria-label="Decrease quantity"
-                    disabled={quantity <= 1}
+                    disabled={quantity <= (product?.category?.toLowerCase() === 'pastries' ? 0.25 : 1)}
                   >
                     <Minus className="h-4 w-4" />
                   </button>
-                  <span className="px-6 py-2 text-sm font-medium">{quantity}</span>
+                  <input
+                    type="number"
+                    min={product?.category?.toLowerCase() === 'pastries' ? "0.25" : "1"}
+                    step={product?.category?.toLowerCase() === 'pastries' ? "0.25" : "1"}
+                    value={quantity}
+                    onChange={handleInputChange}
+                    className="w-20 text-center text-sm font-medium py-2 border-0 focus:ring-0"
+                    aria-label="Quantity"
+                  />
                   <button
-                    onClick={() => handleQuantityChange(quantity + 1)}
+                    onClick={() => {
+                      const isPastry = product?.category?.toLowerCase() === 'pastries';
+                      handleQuantityChange(
+                        isPastry 
+                          ? Math.round((quantity + 0.25) * 100) / 100 
+                          : quantity + 1
+                      );
+                    }}
                     className="p-2 hover:bg-muted transition-colors"
                     aria-label="Increase quantity"
                   >
                     <Plus className="h-4 w-4" />
                   </button>
                 </div>
+                {product?.category?.toLowerCase() !== 'pastries' && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Only whole numbers allowed for this product
+                  </p>
+                )}
+                {product?.category?.toLowerCase() === 'pastries' && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    You can order in increments of 0.25
+                  </p>
+                )}
               </div>
               
               <button

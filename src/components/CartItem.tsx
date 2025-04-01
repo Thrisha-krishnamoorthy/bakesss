@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Minus, Plus, Trash2 } from 'lucide-react';
@@ -14,9 +13,18 @@ const CartItem = ({ item }: CartItemProps) => {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const { updateQuantity, removeFromCart } = useCart();
   
+  const isPastry = item.product.category === 'pastries';
+  
   const handleQuantityChange = (newQuantity: number) => {
-    if (newQuantity < 1) return;
+    if (newQuantity < (isPastry ? 0.25 : 1)) return;
     updateQuantity(item.product.id, newQuantity);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value)) {
+      updateQuantity(item.product.id, value);
+    }
   };
 
   const itemTotal = item.product.price * item.quantity;
@@ -50,16 +58,32 @@ const CartItem = ({ item }: CartItemProps) => {
           {/* Quantity controls */}
           <div className="flex items-center border border-input rounded-md">
             <button
-              onClick={() => handleQuantityChange(item.quantity - 1)}
+              onClick={() => handleQuantityChange(
+                isPastry 
+                  ? Math.round((item.quantity - 0.25) * 100) / 100 
+                  : item.quantity - 1
+              )}
               className="p-1 hover:bg-muted transition-colors"
               aria-label="Decrease quantity"
-              disabled={item.quantity <= 1}
+              disabled={item.quantity <= (isPastry ? 0.25 : 1)}
             >
               <Minus className="h-4 w-4" />
             </button>
-            <span className="px-3 py-1 text-sm font-medium">{item.quantity}</span>
+            <input
+              type="number"
+              min={isPastry ? "0.25" : "1"}
+              step={isPastry ? "0.25" : "1"}
+              value={item.quantity}
+              onChange={handleInputChange}
+              className="w-16 text-center text-sm font-medium py-1 border-0 focus:ring-0"
+              aria-label="Quantity"
+            />
             <button
-              onClick={() => handleQuantityChange(item.quantity + 1)}
+              onClick={() => handleQuantityChange(
+                isPastry 
+                  ? Math.round((item.quantity + 0.25) * 100) / 100 
+                  : item.quantity + 1
+              )}
               className="p-1 hover:bg-muted transition-colors"
               aria-label="Increase quantity"
             >

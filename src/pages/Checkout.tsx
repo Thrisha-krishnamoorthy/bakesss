@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, ChevronLeft, CreditCard, Truck, Store } from 'lucide-react';
+import { Check, ChevronLeft, CreditCard, Truck, Store, AlertCircle, Info } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { Customer } from '../utils/types';
@@ -11,9 +11,14 @@ import { placeOrder } from '../utils/api';
 import { useToast } from '../hooks/use-toast';
 import { formatCurrency } from '../utils/formatters';
 import GoogleMapAddress from '../components/GoogleMapAddress';
+import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 
-// Replace this with your actual Google Maps API key
-const GOOGLE_MAPS_API_KEY = 'AIzaSyDx1nQPvpMGBot0CbM6cUhUVzmdgtz32pQ';
+// Get Google Maps API key from environment variable
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+if (!GOOGLE_MAPS_API_KEY) {
+  console.error('Google Maps API key is not configured');
+}
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -21,6 +26,7 @@ const Checkout = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery');
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'advance'>('cod');
   const [customerInfo, setCustomerInfo] = useState<{
     name: string;
     email: string;
@@ -47,6 +53,7 @@ const Checkout = () => {
     },
   });
   const [isProcessing, setIsProcessing] = useState(false);
+  const isOrderOver1000 = cartTotal >= 1000;
 
   useEffect(() => {
     // Prepopulate form with user data if available
@@ -67,9 +74,19 @@ const Checkout = () => {
     }
   }, [cartItems, navigate]);
 
+  // Set payment method based on order total
+  useEffect(() => {
+    if (isOrderOver1000) {
+      setPaymentMethod('advance');
+    } else {
+      setPaymentMethod('cod');
+    }
+  }, [isOrderOver1000]);
+
   // Calculate summary
   const shipping = deliveryMethod === 'pickup' ? 0 : cartTotal >= 50 ? 0 : 5.99;
   const orderTotal = cartTotal + shipping;
+  const advancePaymentAmount = isOrderOver1000 ? orderTotal * 0.5 : 0;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -93,15 +110,17 @@ const Checkout = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!user) {
-      toast({
-        title: 'Authentication required',
-        description: 'Please login to complete your order',
-        variant: 'destructive',
-      });
-      navigate('/login');
-      return;
+    
+    // Validate address if delivery method is selected
+    if (deliveryMethod === 'delivery') {
+      if (!customerInfo.address.street || !customerInfo.address.city || !customerInfo.address.state || !customerInfo.address.postalCode) {
+        toast({
+          title: 'Address Required',
+          description: 'Please provide a complete delivery address',
+          variant: 'destructive',
+        });
+        return;
+      }
     }
 
     try {
@@ -126,6 +145,8 @@ const Checkout = () => {
         total_price: orderTotal,
         delivery_type: deliveryMethod,
         delivery_address: deliveryAddress,
+        payment_method: paymentMethod,
+        advance_payment: isOrderOver1000 ? advancePaymentAmount : 0,
       };
 
       console.log('Submitting order:', orderData);
@@ -134,6 +155,12 @@ const Checkout = () => {
       const response = await placeOrder(orderData);
 
       console.log('Order placed successfully:', response);
+
+      // Show success message
+      toast({
+        title: 'Order Placed Successfully',
+        description: `Your order #${response.order_id} has been placed successfully.`,
+      });
 
       // Clear cart
       clearCart();
@@ -171,6 +198,16 @@ const Checkout = () => {
             </button>
 
             <h1 className="text-5xl font-serif mb-12">Checkout</h1>
+
+            {isOrderOver1000 && (
+              <Alert variant="warning" className="mb-8 bg-amber-50 border-amber-200">
+                <AlertCircle className="h-5 w-5 text-amber-600" />
+                <AlertTitle className="text-amber-800 font-medium text-lg">Advance Payment Required</AlertTitle>
+                <AlertDescription className="text-amber-700">
+                  For orders over ₹1000, a 50% advance payment is required before we start baking your order.
+                </AlertDescription>
+              </Alert>
+            )}
 
             <div className="grid gap-12 md:grid-cols-[1fr,400px]">
               <div className="space-y-10">
@@ -358,15 +395,42 @@ const Checkout = () => {
                 {/* Payment information */}
                 <div className="bg-card p-8 rounded-xl shadow-md">
                   <h2 className="text-3xl font-serif font-semibold mb-6">Payment Information</h2>
-                  <div className="flex items-center mb-6 text-lg text-muted-foreground">
-                    <CreditCard className="h-6 w-6 mr-3" />
-                    <span>Payment will be collected upon {deliveryMethod === 'delivery' ? 'delivery' : 'pickup'}</span>
-                  </div>
+                  
+                  {isOrderOver1000 ? (
+                    <>
+                      <div className="flex items-center mb-6 text-lg">
+                        <Info className="h-6 w-6 mr-3 text-amber-600" />
+                        <span className="text-amber-700 font-medium">
+                          For orders over ₹1000, a 50% advance payment (₹{advancePaymentAmount.toFixed(2)}) is required before we start baking.
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center mb-6 text-lg">
+                        <CreditCard className="h-6 w-6 mr-3" />
+                        <span>
+                          Please complete the advance payment to proceed with your order. The remaining balance will be collected upon {deliveryMethod === 'delivery' ? 'delivery' : 'pickup'}.
+                        </span>
+                      </div>
+                      
+                      <div className="mt-6 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                        <h3 className="font-medium text-xl mb-3">Payment Options</h3>
+                        <p className="text-lg mb-4">Please contact us at +91 9876543210 to complete your advance payment via UPI, bank transfer, or credit/debit card.</p>
+                        <p className="text-lg text-muted-foreground">Your order will be processed once we confirm your payment.</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center mb-6 text-lg text-muted-foreground">
+                        <CreditCard className="h-6 w-6 mr-3" />
+                        <span>Payment will be collected upon {deliveryMethod === 'delivery' ? 'delivery' : 'pickup'}</span>
+                      </div>
 
-                  <div className="flex items-center text-green-600 text-lg">
-                    <Check className="h-6 w-6 mr-3" />
-                    <span>Pay with cash or card</span>
-                  </div>
+                      <div className="flex items-center text-green-600 text-lg">
+                        <Check className="h-6 w-6 mr-3" />
+                        <span>Pay with cash or card</span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <button
@@ -425,6 +489,19 @@ const Checkout = () => {
                         {shipping === 0 ? 'Free' : formatCurrency(shipping)}
                       </span>
                     </div>
+
+                    {isOrderOver1000 && (
+                      <>
+                        <div className="flex justify-between py-2 text-amber-700">
+                          <span>Advance Payment (50%)</span>
+                          <span className="font-medium">{formatCurrency(advancePaymentAmount)}</span>
+                        </div>
+                        <div className="flex justify-between py-2 text-muted-foreground">
+                          <span>Remaining Balance</span>
+                          <span className="font-medium">{formatCurrency(orderTotal - advancePaymentAmount)}</span>
+                        </div>
+                      </>
+                    )}
 
                     <div className="border-t pt-4 mt-4 flex justify-between text-xl">
                       <span className="font-medium">Total</span>

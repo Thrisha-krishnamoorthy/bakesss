@@ -49,9 +49,7 @@ const Navbar = () => {
         <div className="content-container">
           <div className="flex justify-between items-center py-8 md:py-10">
             {/* Logo */}
-            <Link to="/" className="flex items-center space-x-3">
-              <BrandLogo className="h-12 w-auto" />
-            </Link>
+            <BrandLogo className="h-12 w-auto" />
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-12">

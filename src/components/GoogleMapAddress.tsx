@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { MapPin, Search, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { toast } from './ui/use-toast';
 
 const containerStyle = {
   width: '100%',
@@ -154,6 +155,7 @@ const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSe
   const [infoContent, setInfoContent] = useState('');
   const [isLocating, setIsLocating] = useState(false);
   const [activeTab, setActiveTab] = useState('map');
+  const [retryCount, setRetryCount] = useState(0);
   
   // Load initial address if provided
   useEffect(() => {
@@ -171,7 +173,7 @@ const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSe
   
   // Automatically get current location when the component mounts
   useEffect(() => {
-    // Wait a bit for the map to initialize
+    // Wait a bit for the map and geocoder to initialize
     const timer = setTimeout(() => {
       if (map && geocoder) {
         getCurrentLocation();
@@ -181,11 +183,27 @@ const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSe
     return () => clearTimeout(timer);
   }, [map, geocoder]);
 
+  // Initialize geocoder when Google Maps is loaded
   useEffect(() => {
     if (window.google && !geocoder) {
-      setGeocoder(new window.google.maps.Geocoder());
+      const newGeocoder = new window.google.maps.Geocoder();
+      setGeocoder(newGeocoder);
     }
   }, [geocoder]);
+
+  // Retry mechanism for geocoder initialization
+  useEffect(() => {
+    if (!geocoder && retryCount < 5) {
+      const timer = setTimeout(() => {
+        if (window.google) {
+          const newGeocoder = new window.google.maps.Geocoder();
+          setGeocoder(newGeocoder);
+        }
+        setRetryCount(prev => prev + 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [geocoder, retryCount]);
 
   const onLoad = useCallback((map: google.maps.Map) => {
     setMap(map);
@@ -363,21 +381,16 @@ const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSe
           setMarker(pos);
           map?.setCenter(pos);
           map?.setZoom(16);
-          
-          // Set the coordinates immediately to ensure we have them
-          setInfoContent(`Location: ${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`);
           setShowInfoWindow(true);
           
-          // Always update the parent with the coordinates, even before geocoding completes
-          updateParentComponent({
-            street: '',
-            city: '',
-            state: '',
-            postalCode: '',
-            lat: pos.lat,
-            lng: pos.lng,
-            name: 'Current Location'
-          });
+          // Set the coordinates immediately while we wait for geocoding
+          setInfoContent("Getting address details...");
+          
+          // Make sure Google Maps is loaded and geocoder is available
+          if (window.google && (!geocoder || !map)) {
+            const newGeocoder = new window.google.maps.Geocoder();
+            setGeocoder(newGeocoder);
+          }
           
           if (geocoder) {
             geocoder.geocode({ location: pos }, (results, status) => {
@@ -386,7 +399,7 @@ const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSe
                 const address = results[0];
                 setInfoContent(address.formatted_address);
                 
-                // Extract address components with improved handling
+                // Extract address components
                 let streetNumber = '';
                 let route = '';
                 let neighborhood = '';
@@ -438,16 +451,8 @@ const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSe
                 setState(administrative_area || '');
                 setPostalCode(postal_code || '');
                 
-                console.log('Current location geocoded address:', {
-                  streetAddress,
-                  locality,
-                  administrative_area,
-                  postal_code,
-                  formatted: address.formatted_address
-                });
-                
                 // Update parent with both coordinates and address info
-                updateParentComponent({
+                const updatedAddress = {
                   street: streetAddress,
                   city: locality || '',
                   state: administrative_area || '',
@@ -455,29 +460,50 @@ const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSe
                   lat: pos.lat,
                   lng: pos.lng,
                   name: 'Current Location'
-                });
+                };
+                
+                // Update the parent component
+                onAddressSelect(updatedAddress);
+                
+                // Update the selected address display
+                setInfoContent(`${streetAddress}, ${locality}, ${administrative_area} ${postal_code}`);
               } else {
                 console.error('Geocoding failed:', status);
                 setIsLocating(false);
-                // Keep the coordinates but show an error message
-                setInfoContent(`Location: ${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)} (Unable to get address)`);
+                // Silently continue without showing an error toast
               }
             });
+          } else if (retryCount < 5) {
+            // If geocoder is not available, increment retry count and try again
+            setRetryCount(prev => prev + 1);
+            setTimeout(getCurrentLocation, 1000);
           } else {
             setIsLocating(false);
-            // Keep using the coordinates
-            setInfoContent(`Location: ${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)} (No geocoder available)`);
+            // After 5 retries, silently fail and let user select location manually
+            console.log('Unable to initialize Google Maps after retries');
           }
         },
         (error) => {
           setIsLocating(false);
           console.error('Error getting location:', error);
-          alert('Unable to get your location. Please select a location from the dropdown or click on the map.');
+          toast({
+            title: 'Location Error',
+            description: 'Unable to get your location. Please select a location from the map or enter it manually.',
+            variant: 'destructive',
+          });
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { 
+          enableHighAccuracy: true, 
+          timeout: 10000, 
+          maximumAge: 0 
+        }
       );
     } else {
-      alert('Geolocation is not supported by your browser.');
+      toast({
+        title: 'Browser Error',
+        description: 'Geolocation is not supported by your browser. Please select a location from the map or enter it manually.',
+        variant: 'destructive',
+      });
     }
   };
   
@@ -495,7 +521,9 @@ const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSe
   
   // Update parent component whenever address fields change
   useEffect(() => {
-    updateParentComponent();
+    if (street || city || state || postalCode) {
+      updateParentComponent();
+    }
   }, [street, city, state, postalCode]);
 
   return (
@@ -548,20 +576,27 @@ const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSe
                   streetViewControl: false,
                   mapTypeControl: false,
                   fullscreenControl: false,
-                  gestureHandling: 'greedy', // Makes it easier to navigate on mobile
+                  gestureHandling: 'greedy',
                 }}
               >
-                <Marker position={marker} />
-                {showInfoWindow && infoContent && (
-                  <InfoWindow
-                    position={marker}
-                    onCloseClick={() => setShowInfoWindow(false)}
-                  >
-                    <div className="text-black text-sm p-1 max-w-[250px]">
-                      {infoContent}
-                    </div>
-                  </InfoWindow>
-                )}
+                <Marker 
+                  position={marker}
+                  onClick={() => {
+                    if (infoContent) {
+                      setShowInfoWindow(true);
+                    }
+                  }}
+                >
+                  {showInfoWindow && infoContent && (
+                    <InfoWindow
+                      onCloseClick={() => setShowInfoWindow(false)}
+                    >
+                      <div className="text-black text-sm p-1 max-w-[250px]">
+                        {infoContent}
+                      </div>
+                    </InfoWindow>
+                  )}
+                </Marker>
               </GoogleMap>
             </LoadScript>
             
@@ -577,8 +612,14 @@ const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSe
           
           <div className="mt-4 p-4 border rounded-md bg-gray-50">
             <h3 className="font-medium mb-2">Selected Address</h3>
-            <p className="text-sm">{street}</p>
-            <p className="text-sm">{city}, {state} {postalCode}</p>
+            {street ? (
+              <>
+                <p className="text-sm">{street}</p>
+                <p className="text-sm">{city}, {state} {postalCode}</p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">No address selected</p>
+            )}
             <div className="mt-3">
               <Button 
                 variant="outline" 

@@ -130,6 +130,8 @@ export const placeOrder = async (orderData: {
   total_price: number;
   delivery_type: 'delivery' | 'pickup';
   delivery_address?: string;
+  payment_method: string;
+  advance_payment: number;
 }): Promise<{ message: string; order_id: number }> => {
   try {
     // Convert product_id strings to numbers for the backend
@@ -147,8 +149,11 @@ export const placeOrder = async (orderData: {
       body: JSON.stringify({
         email: orderData.email,
         items: formattedItems,
-        shipping_address: orderData.delivery_address || '',
-        total_amount: orderData.total_price
+        total_amount: orderData.total_price,
+        delivery_type: orderData.delivery_type,
+        delivery_address: orderData.delivery_address || '',
+        payment_method: orderData.payment_method,
+        advance_payment: orderData.advance_payment
       }),
     });
     

@@ -101,12 +101,12 @@ const Login = () => {
                       <FormItem className="space-y-2">
                         <div className="flex items-center justify-between mb-1">
                           <FormLabel className="block text-sm font-medium">Password</FormLabel>
-                          <Link
+                          {/* <Link
                             to="/forgot-password"
                             className="text-xs text-primary hover:underline"
                           >
                             Forgot password?
-                          </Link>
+                          </Link> */}
                         </div>
                         <FormControl>
                           <div className="relative">

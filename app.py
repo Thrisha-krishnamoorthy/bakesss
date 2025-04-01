@@ -193,6 +193,10 @@ def place_order():
 
     email = data['email']
     items = data['items']
+    delivery_type = data.get('delivery_type', 'delivery')
+    delivery_address = data.get('delivery_address', '')
+    payment_method = data.get('payment_method', 'cod')
+    advance_payment = data.get('advance_payment', 0)
 
     connection = get_db_connection()
     if not connection:
@@ -224,13 +228,18 @@ def place_order():
 
         # Calculate total price
         total_price = sum(item['price'] * item['quantity'] for item in items)
-        delivery_type = data.get('delivery_type', 'delivery')
-        delivery_address = data.get('delivery_address', '')
 
         # Insert order into database
         cursor.execute(
-            "INSERT INTO orders (user_id, total_price, delivery_type, delivery_address) VALUES (%s, %s, %s, %s)",
-            (user_id, total_price, delivery_type, delivery_address)
+            """INSERT INTO orders (
+                user_id, total_price, delivery_type, delivery_address, 
+                payment_method, advance_payment, order_status, payment_status
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (
+                user_id, total_price, delivery_type, delivery_address,
+                payment_method, advance_payment, 
+                'pending', 'not paid'  # Always set as 'not paid' initially
+            )
         )
         order_id = cursor.lastrowid
 
