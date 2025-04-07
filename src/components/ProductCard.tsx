@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '../utils/types';
@@ -6,6 +5,7 @@ import { useCart } from '../context/CartContext';
 import { useToast } from '../hooks/use-toast';
 import { PlusCircle, Check } from 'lucide-react';
 import { formatCurrency } from '../utils/formatters';
+import { Input } from './ui/input';
 
 interface ProductCardProps {
   product: Product;
@@ -14,6 +14,7 @@ interface ProductCardProps {
 const ProductCard = ({ product }: ProductCardProps) => {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
+  const [quantity, setQuantity] = useState(product.category === 'pastries' ? 0.25 : 1);
   const { addToCart } = useCart();
   const { toast } = useToast();
 
@@ -21,15 +22,34 @@ const ProductCard = ({ product }: ProductCardProps) => {
     e.preventDefault();
     e.stopPropagation();
     
-    addToCart(product, 1);
+    addToCart(product, quantity);
     
     toast({
       title: "Added to cart",
-      description: `${product.name} has been added to your cart.`,
+      description: `${product.name} (${quantity}${product.category === 'pastries' ? ' kg' : ''}) has been added to your cart.`,
     });
     
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 1500);
+  };
+
+  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value)) {
+      if (product.category === 'pastries') {
+        // For pastries, ensure value is in increments of 0.25
+        const roundedValue = Math.round(value * 4) / 4;
+        if (roundedValue >= 0.25) {
+          setQuantity(roundedValue);
+        }
+      } else {
+        // For other products, ensure whole numbers
+        const wholeNumber = Math.floor(value);
+        if (wholeNumber >= 1) {
+          setQuantity(wholeNumber);
+        }
+      }
+    }
   };
 
   return (
@@ -81,6 +101,22 @@ const ProductCard = ({ product }: ProductCardProps) => {
         <h3 className="font-medium text-lg text-balance">{product.name}</h3>
         <p className="text-muted-foreground text-sm mt-1 line-clamp-2">{product.description}</p>
         <div className="mt-2 font-semibold">{formatCurrency(product.price)}</div>
+        
+        {/* Quantity input */}
+        <div className="mt-3 flex items-center gap-2">
+          <Input
+            type="number"
+            min={product.category === 'pastries' ? "0.25" : "1"}
+            step={product.category === 'pastries' ? "0.25" : "1"}
+            value={quantity}
+            onChange={handleQuantityChange}
+            className="w-20 text-center"
+            aria-label="Quantity"
+          />
+          {product.category === 'pastries' && (
+            <span className="text-sm text-muted-foreground">kg</span>
+          )}
+        </div>
       </div>
     </Link>
   );

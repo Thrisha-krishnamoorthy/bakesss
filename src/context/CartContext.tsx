@@ -24,113 +24,136 @@ export const useCart = () => {
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
-    // Initialize from localStorage if available
-    const savedCart = localStorage.getItem('cart');
-    return savedCart ? JSON.parse(savedCart) : [];
+    try {
+      const savedCart = localStorage.getItem('cart');
+      if (savedCart) {
+        const parsedCart = JSON.parse(savedCart);
+        // Ensure quantities are properly formatted
+        return parsedCart.map((item: CartItem) => ({
+          ...item,
+          quantity: item.product.category === 'pastries'
+            ? parseFloat(item.quantity.toFixed(2)) // Keep decimal places for pastries
+            : Math.floor(item.quantity)
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading cart from localStorage:', error);
+    }
+    return [];
   });
+  
   const { toast } = useToast();
 
-  // Calculate cart total
-  const cartTotal = cartItems.reduce(
-    (total, item) => total + item.product.price * item.quantity,
-    0
-  );
+  // Calculate cart total with proper decimal handling
+  const cartTotal = cartItems.reduce((total, item) => {
+    const quantity = item.product.category === 'pastries'
+      ? parseFloat(item.quantity.toFixed(2)) // Keep decimal places for pastries
+      : Math.floor(item.quantity);
+    
+    const itemPrice = Math.round(item.product.price * quantity * 100) / 100;
+    return Math.round((total + itemPrice) * 100) / 100;
+  }, 0);
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cartItems));
+    try {
+      localStorage.setItem('cart', JSON.stringify(cartItems));
+    } catch (error) {
+      console.error('Error saving cart to localStorage:', error);
+    }
   }, [cartItems]);
 
   // Check if quantity is valid for the product category
   const isValidQuantity = (product: Product, quantity: number): boolean => {
-    // Only pastries can have decimal quantities
-    if (product.category !== 'pastries' && !Number.isInteger(quantity)) {
-      return false;
+    if (isNaN(quantity) || quantity <= 0) return false;
+
+    if (product.category === 'pastries') {
+      // For pastries, allow any decimal value >= 0.25
+      return quantity >= 0.25;
     }
     
-    // All products must have a minimum quantity of at least 1 for non-pastries or 0.25 for pastries
-    return product.category === 'pastries' ? quantity >= 0.25 : quantity >= 1;
+    return Number.isInteger(quantity) && quantity >= 1;
   };
 
   const addToCart = (product: Product, quantity: number) => {
-    // Ensure quantity is a valid number with 2 decimal places
-    const validQuantity = Math.round(quantity * 100) / 100;
+    const validQuantity = product.category === 'pastries'
+      ? parseFloat(quantity.toFixed(2)) // Keep decimal places for pastries
+      : Math.floor(quantity);
     
-    // Check if the quantity is valid for this product category
     if (!isValidQuantity(product, validQuantity)) {
       toast({
         title: "Invalid quantity",
-        description: product.category === 'pastries' 
-          ? "Minimum quantity is 0.25" 
-          : "Please enter a whole number quantity for this product",
+        description: product.category === 'pastries'
+          ? "Quantity must be at least 0.25"
+          : "Please enter a whole number quantity (minimum 1)",
         variant: "destructive"
       });
       return;
     }
-    
-    setCartItems((prevItems) => {
-      // Check if product already exists in cart
-      const existingItemIndex = prevItems.findIndex(
-        (item) => item.product.id === product.id
-      );
 
-      if (existingItemIndex >= 0) {
-        // Update quantity if product already in cart
-        const updatedItems = [...prevItems];
-        const newQuantity = Math.round((updatedItems[existingItemIndex].quantity + validQuantity) * 100) / 100;
-        
-        // Validate the new quantity
+    setCartItems(prevItems => {
+      const existingItem = prevItems.find(item => item.product.id === product.id);
+      
+      if (existingItem) {
+        const newQuantity = product.category === 'pastries'
+          ? parseFloat((existingItem.quantity + validQuantity).toFixed(2))
+          : Math.floor(existingItem.quantity + validQuantity);
+
         if (!isValidQuantity(product, newQuantity)) {
           toast({
             title: "Invalid quantity",
-            description: product.category === 'pastries' 
-              ? "Quantity must be at least 0.25" 
-              : "Quantity must be a whole number for this product",
+            description: product.category === 'pastries'
+              ? "Total quantity must be at least 0.25"
+              : "Total quantity must be a whole number (minimum 1)",
             variant: "destructive"
           });
           return prevItems;
         }
-        
-        updatedItems[existingItemIndex].quantity = newQuantity;
-        return updatedItems;
-      } else {
-        // Add new item to cart
-        return [...prevItems, { product, quantity: validQuantity }];
+
+        return prevItems.map(item =>
+          item.product.id === product.id
+            ? { ...item, quantity: newQuantity }
+            : item
+        );
       }
+
+      return [...prevItems, { product, quantity: validQuantity }];
+    });
+
+    toast({
+      title: "Added to cart",
+      description: `${product.name} (${validQuantity}${product.category === 'pastries' ? ' kg' : ''}) has been added to your cart.`,
     });
   };
 
   const removeFromCart = (productId: string) => {
-    setCartItems((prevItems) => 
-      prevItems.filter((item) => item.product.id !== productId)
-    );
+    setCartItems(prevItems => prevItems.filter(item => item.product.id !== productId));
   };
 
   const updateQuantity = (productId: string, quantity: number) => {
-    // Ensure quantity is a valid number with 2 decimal places
-    const validQuantity = Math.round(quantity * 100) / 100;
-    
-    setCartItems((prevItems) => {
+    setCartItems(prevItems => {
       const itemIndex = prevItems.findIndex(item => item.product.id === productId);
       if (itemIndex === -1) return prevItems;
-      
+
       const product = prevItems[itemIndex].product;
-      
-      // Check if the quantity is valid for this product category
+      const validQuantity = product.category === 'pastries'
+        ? parseFloat(quantity.toFixed(2)) // Keep decimal places for pastries
+        : Math.floor(quantity);
+
       if (!isValidQuantity(product, validQuantity)) {
         toast({
           title: "Invalid quantity",
-          description: product.category === 'pastries' 
-            ? "Minimum quantity is 0.25" 
-            : "Please enter a whole number quantity for this product",
+          description: product.category === 'pastries'
+            ? "Quantity must be at least 0.25"
+            : "Please enter a whole number quantity (minimum 1)",
           variant: "destructive"
         });
         return prevItems;
       }
-      
-      return prevItems.map((item) => 
-        item.product.id === productId 
-          ? { ...item, quantity: validQuantity } 
+
+      return prevItems.map(item =>
+        item.product.id === productId
+          ? { ...item, quantity: validQuantity }
           : item
       );
     });

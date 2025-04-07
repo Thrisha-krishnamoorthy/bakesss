@@ -229,16 +229,16 @@ const ProductDetail = () => {
                     <Plus className="h-4 w-4" />
                   </button>
                 </div>
-                {product?.category?.toLowerCase() !== 'pastries' && (
+                {/* {product?.category?.toLowerCase() !== 'pastries' && (
                   <p className="text-xs text-muted-foreground mt-1">
                     Only whole numbers allowed for this product
                   </p>
-                )}
-                {product?.category?.toLowerCase() === 'pastries' && (
+                )} */}
+                {/* {product?.category?.toLowerCase() === 'pastries' && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    You can order in increments of 0.25
+                    
                   </p>
-                )}
+                )} */}
               </div>
               
               <button

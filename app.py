@@ -195,6 +195,7 @@ def place_order():
     items = data['items']
     delivery_type = data.get('delivery_type', 'delivery')
     delivery_address = data.get('delivery_address', '')
+    map_link = data.get('map_link', '')  # Get map_link from request
     payment_method = data.get('payment_method', 'cod')
     advance_payment = data.get('advance_payment', 0)
 
@@ -232,11 +233,11 @@ def place_order():
         # Insert order into database
         cursor.execute(
             """INSERT INTO orders (
-                user_id, total_price, delivery_type, delivery_address, 
+                user_id, total_price, delivery_type, delivery_address, map_link,
                 payment_method, advance_payment, order_status, payment_status
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             (
-                user_id, total_price, delivery_type, delivery_address,
+                user_id, total_price, delivery_type, delivery_address, map_link,
                 payment_method, advance_payment, 
                 'pending', 'not paid'  # Always set as 'not paid' initially
             )
@@ -340,6 +341,7 @@ def fetch_orders_by_email(email):
         # Then get the orders using the user_id with more product details
         query = """
         SELECT o.order_id, o.order_status, o.total_price, o.payment_status, 
+               o.delivery_type, o.delivery_address, o.map_link,
                oi.product_id, p.name AS product_name, p.status AS product_status,
                p.image_url, oi.quantity, oi.price as item_price,
                o.created_at as date
@@ -365,6 +367,9 @@ def fetch_orders_by_email(email):
                     'order_status': item['order_status'],
                     'total_price': float(item['total_price']),
                     'payment_status': item['payment_status'],
+                    'delivery_type': item['delivery_type'],
+                    'delivery_address': item['delivery_address'],
+                    'map_link': item['map_link'],
                     'date': item['date'].strftime('%Y-%m-%d %H:%M:%S'),
                     'products': []
                 }
@@ -407,6 +412,7 @@ def fetch_order_details(order_id):
         # Get order details with product information
         query = """
         SELECT o.order_id, o.order_status, o.total_price, o.payment_status, o.created_at as date,
+               o.delivery_type, o.delivery_address, o.map_link,
                oi.product_id, p.name AS product_name, p.status AS product_status, p.image_url,
                oi.quantity, oi.price as item_price
         FROM orders o
@@ -425,6 +431,9 @@ def fetch_order_details(order_id):
                 "total_price": float(order["total_price"]),
                 "payment_status": order["payment_status"],
                 "date": order["created_at"].strftime('%Y-%m-%d %H:%M:%S'),
+                "delivery_type": order["delivery_type"],
+                "delivery_address": order["delivery_address"],
+                "map_link": order["map_link"],
                 "products": []
             }), 200
 
@@ -435,6 +444,9 @@ def fetch_order_details(order_id):
             "total_price": float(order_details[0]["total_price"]),
             "payment_status": order_details[0]["payment_status"],
             "date": order_details[0]["date"].strftime('%Y-%m-%d %H:%M:%S'),
+            "delivery_type": order_details[0]["delivery_type"],
+            "delivery_address": order_details[0]["delivery_address"],
+            "map_link": order_details[0]["map_link"],
             "products": []
         }
 

@@ -10,15 +10,15 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import { placeOrder } from '../utils/api';
 import { useToast } from '../hooks/use-toast';
 import { formatCurrency } from '../utils/formatters';
-import GoogleMapAddress from '../components/GoogleMapAddress';
+import MapAddress from '../components/GoogleMapAddress';
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
+import { calculateShippingCharge } from '../utils/shipping';
 
-// Get Google Maps API key from environment variable
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-if (!GOOGLE_MAPS_API_KEY) {
-  console.error('Google Maps API key is not configured');
-}
+// Remove or comment out the Google Maps API key section
+// const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+// if (!GOOGLE_MAPS_API_KEY) {
+//   console.error('Google Maps API key is not configured');
+// }
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -38,6 +38,7 @@ const Checkout = () => {
       postalCode: string;
       lat: number;
       lng: number;
+      mapLink: string;
     };
   }>({
     name: '',
@@ -50,10 +51,12 @@ const Checkout = () => {
       postalCode: '',
       lat: 0,
       lng: 0,
+      mapLink: '',
     },
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const isOrderOver1000 = cartTotal >= 1000;
+  const [shippingInfo, setShippingInfo] = useState<{ charge: number; zoneName: string }>({ charge: 0, zoneName: '' });
 
   useEffect(() => {
     // Prepopulate form with user data if available
@@ -83,9 +86,23 @@ const Checkout = () => {
     }
   }, [isOrderOver1000]);
 
-  // Calculate summary
+  // Calculate shipping whenever delivery method or address changes
+  useEffect(() => {
+    if (deliveryMethod === 'delivery' && customerInfo.address.postalCode) {
+      const { charge, zoneName } = calculateShippingCharge(
+        customerInfo.address.postalCode,
+        cartTotal,
+        deliveryMethod
+      );
+      setShippingInfo({ charge, zoneName });
+    } else {
+      setShippingInfo({ charge: 0, zoneName: 'Store Pickup' });
+    }
+  }, [deliveryMethod, customerInfo.address.postalCode, cartTotal]);
+
+  // Update order total calculation
   const shipping = deliveryMethod === 'pickup' ? 0 : cartTotal >= 50 ? 0 : 5.99;
-  const orderTotal = cartTotal + shipping;
+  const orderTotal = cartTotal + shippingInfo.charge;
   const advancePaymentAmount = isOrderOver1000 ? orderTotal * 0.5 : 0;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -111,6 +128,15 @@ const Checkout = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!user) {
+      toast({
+        title: 'Error',
+        description: 'Please log in to place an order.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // Validate address if delivery method is selected
     if (deliveryMethod === 'delivery') {
       if (!customerInfo.address.street || !customerInfo.address.city || !customerInfo.address.state || !customerInfo.address.postalCode) {
@@ -145,6 +171,7 @@ const Checkout = () => {
         total_price: orderTotal,
         delivery_type: deliveryMethod,
         delivery_address: deliveryAddress,
+        map_link: customerInfo.address.mapLink,
         payment_method: paymentMethod,
         advance_payment: isOrderOver1000 ? advancePaymentAmount : 0,
       };
@@ -200,11 +227,23 @@ const Checkout = () => {
             <h1 className="text-5xl font-serif mb-12">Checkout</h1>
 
             {isOrderOver1000 && (
-              <Alert variant="warning" className="mb-8 bg-amber-50 border-amber-200">
+              <Alert className="mb-8 bg-amber-50 border-amber-200">
                 <AlertCircle className="h-5 w-5 text-amber-600" />
                 <AlertTitle className="text-amber-800 font-medium text-lg">Advance Payment Required</AlertTitle>
                 <AlertDescription className="text-amber-700">
                   For orders over ₹1000, a 50% advance payment is required before we start baking your order.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Add shipping information display */}
+            {deliveryMethod === 'delivery' && customerInfo.address.postalCode && (
+              <Alert className="mb-6">
+                <Info className="h-5 w-5" />
+                <AlertTitle>Delivery Zone: {shippingInfo.zoneName}</AlertTitle>
+                <AlertDescription>
+                  Shipping charge: {formatCurrency(shippingInfo.charge)}
+                  {shippingInfo.charge === 0 && ' (Free Shipping)'}
                 </AlertDescription>
               </Alert>
             )}
@@ -308,8 +347,7 @@ const Checkout = () => {
                 {deliveryMethod === 'delivery' && (
                   <div className="bg-card p-8 rounded-xl shadow-md">
                     <h2 className="text-3xl font-serif font-semibold mb-6">Delivery Address</h2>
-                    <GoogleMapAddress
-                      apiKey={GOOGLE_MAPS_API_KEY}
+                    <MapAddress
                       initialAddress={customerInfo.address}
                       onAddressSelect={(address) =>
                         setCustomerInfo((prev) => ({
@@ -321,6 +359,7 @@ const Checkout = () => {
                             postalCode: address.postalCode,
                             lat: address.lat,
                             lng: address.lng,
+                            mapLink: address.mapLink,
                           },
                         }))
                       }
@@ -486,9 +525,15 @@ const Checkout = () => {
                     <div className="flex justify-between py-2">
                       <span className="text-muted-foreground">Shipping</span>
                       <span className="font-medium">
-                        {shipping === 0 ? 'Free' : formatCurrency(shipping)}
+                        {shippingInfo.charge === 0 ? 'Free' : formatCurrency(shippingInfo.charge)}
                       </span>
                     </div>
+
+                    {shippingInfo.charge === 0 && deliveryMethod === 'delivery' && (
+                      <div className="text-green-600 text-sm py-1">
+                        You've qualified for free shipping in {shippingInfo.zoneName}!
+                      </div>
+                    )}
 
                     {isOrderOver1000 && (
                       <>

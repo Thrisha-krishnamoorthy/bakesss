@@ -1,6 +1,5 @@
-
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, ArrowRight, ChevronLeft } from 'lucide-react';
+import { ShoppingBag, ArrowRight, ChevronLeft, Trash2 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import CartItem from '../components/CartItem';
 import Navbar from '../components/Navbar';
@@ -52,7 +51,7 @@ const Cart = () => {
             onClick={() => navigate(-1)}
             className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center"
           >
-            <ChevronLeft className="h-4 w-4 mr-1" /> Continue Shopping
+            <ChevronLeft className="h-4 w-4 mr-1" /> .
           </button>
         </div>
         

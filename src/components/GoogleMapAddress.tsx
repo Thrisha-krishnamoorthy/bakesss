@@ -1,15 +1,26 @@
 import { useState, useCallback, useEffect } from 'react';
-import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { MapPin, Search, Loader2 } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { toast } from './ui/use-toast';
+import L from 'leaflet';
 
-const containerStyle = {
+// Fix Leaflet default marker icon issue
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Add required styles for the map
+const mapStyles = {
   width: '100%',
-  height: '400px'
+  height: '400px',
+  zIndex: 0
 };
 
 // Default location (Bangalore)
@@ -112,18 +123,7 @@ const detailedLocations = [
   }
 ];
 
-// Group locations by city
-const locationsByCity = detailedLocations.reduce((acc, location) => {
-  const city = location.city;
-  if (!acc[city]) {
-    acc[city] = [];
-  }
-  acc[city].push(location);
-  return acc;
-}, {} as Record<string, typeof detailedLocations>);
-
-interface GoogleMapAddressProps {
-  apiKey: string;
+interface MapAddressProps {
   onAddressSelect: (address: {
     street: string;
     city: string;
@@ -132,6 +132,7 @@ interface GoogleMapAddressProps {
     lat: number;
     lng: number;
     name?: string;
+    mapLink: string;
   }) => void;
   initialAddress?: {
     street: string;
@@ -140,23 +141,47 @@ interface GoogleMapAddressProps {
     postalCode: string;
     lat: number;
     lng: number;
+    mapLink?: string;
   };
 }
 
-const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSelect, initialAddress }) => {
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null);
-  const [marker, setMarker] = useState<google.maps.LatLngLiteral>({ lat: 12.9716, lng: 77.5946 }); // Default to Bangalore
+// Component to handle map events and updates
+function MapEvents({ onMapClick }: { onMapClick: (e: L.LeafletMouseEvent) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    map.on('click', onMapClick);
+    return () => {
+      map.off('click', onMapClick);
+    };
+  }, [map, onMapClick]);
+  return null;
+}
+
+// Add this new component for map center control
+function MapCenterControl({ center }: { center: L.LatLng }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (center) {
+      map.setView([center.lat, center.lng], 13);
+    }
+  }, [center, map]);
+
+  return null;
+}
+
+const MapAddress: React.FC<MapAddressProps> = ({ onAddressSelect, initialAddress }) => {
+  const [marker, setMarker] = useState<L.LatLng | null>(
+    initialAddress ? L.latLng(initialAddress.lat, initialAddress.lng) : null
+  );
   const [street, setStreet] = useState(initialAddress?.street || '');
   const [city, setCity] = useState(initialAddress?.city || '');
   const [state, setState] = useState(initialAddress?.state || '');
   const [postalCode, setPostalCode] = useState(initialAddress?.postalCode || '');
-  const [showInfoWindow, setShowInfoWindow] = useState(false);
-  const [infoContent, setInfoContent] = useState('');
   const [isLocating, setIsLocating] = useState(false);
   const [activeTab, setActiveTab] = useState('map');
-  const [retryCount, setRetryCount] = useState(0);
-  
+  const [popupContent, setPopupContent] = useState('');
+
   // Load initial address if provided
   useEffect(() => {
     if (initialAddress) {
@@ -164,323 +189,143 @@ const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSe
       setCity(initialAddress.city || '');
       setState(initialAddress.state || '');
       setPostalCode(initialAddress.postalCode || '');
-      
-      if (initialAddress.lat && initialAddress.lng) {
-        setMarker({ lat: initialAddress.lat, lng: initialAddress.lng });
-      }
+      setMarker(L.latLng(initialAddress.lat, initialAddress.lng));
     }
   }, [initialAddress]);
-  
-  // Automatically get current location when the component mounts
-  useEffect(() => {
-    // Wait a bit for the map and geocoder to initialize
-    const timer = setTimeout(() => {
-      if (map && geocoder) {
-        getCurrentLocation();
-      }
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, [map, geocoder]);
 
-  // Initialize geocoder when Google Maps is loaded
-  useEffect(() => {
-    if (window.google && !geocoder) {
-      const newGeocoder = new window.google.maps.Geocoder();
-      setGeocoder(newGeocoder);
-    }
-  }, [geocoder]);
-
-  // Retry mechanism for geocoder initialization
-  useEffect(() => {
-    if (!geocoder && retryCount < 5) {
-      const timer = setTimeout(() => {
-        if (window.google) {
-          const newGeocoder = new window.google.maps.Geocoder();
-          setGeocoder(newGeocoder);
-        }
-        setRetryCount(prev => prev + 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [geocoder, retryCount]);
-
-  const onLoad = useCallback((map: google.maps.Map) => {
-    setMap(map);
-  }, []);
-
-  const onUnmount = useCallback(() => {
-    setMap(null);
-  }, []);
-
-  const handleMapClick = (e: google.maps.MapMouseEvent) => {
-    if (e.latLng) {
-      const pos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-      setMarker(pos);
-      setShowInfoWindow(true);
-      
-      // Set the coordinates immediately to ensure we have them
-      setInfoContent(`Location: ${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`);
-      
-      // Always update the parent with the coordinates, even before geocoding completes
-      updateParentComponent({
-        street: '',
-        city: '',
-        state: '',
-        postalCode: '',
-        lat: pos.lat,
-        lng: pos.lng,
-        name: 'Selected Location'
-      });
-      
-      if (geocoder) {
-        setIsLocating(true);
-        geocoder.geocode({ location: pos }, (results, status) => {
-          setIsLocating(false);
-          if (status === 'OK' && results?.[0]) {
-            const address = results[0];
-            setInfoContent(address.formatted_address);
-            
-            // Extract address components with improved handling
-            let streetNumber = '';
-            let route = '';
-            let neighborhood = '';
-            let sublocality = '';
-            let locality = '';
-            let administrative_area = '';
-            let postal_code = '';
-            
-            for (const component of address.address_components) {
-              const types = component.types;
-              if (types.includes('street_number')) {
-                streetNumber = component.long_name;
-              } else if (types.includes('route')) {
-                route = component.long_name;
-              } else if (types.includes('neighborhood')) {
-                neighborhood = component.long_name;
-              } else if (types.includes('sublocality') || types.includes('sublocality_level_1')) {
-                sublocality = component.long_name;
-              } else if (types.includes('locality')) {
-                locality = component.long_name;
-              } else if (types.includes('administrative_area_level_1')) {
-                administrative_area = component.long_name;
-              } else if (types.includes('postal_code')) {
-                postal_code = component.long_name;
-              }
-            }
-            
-            // Construct a more complete street address
-            let streetAddress = '';
-            if (streetNumber && route) {
-              streetAddress = `${streetNumber} ${route}`;
-            } else if (route) {
-              streetAddress = route;
-            } else if (neighborhood) {
-              streetAddress = neighborhood;
-            } else if (sublocality) {
-              streetAddress = sublocality;
-            } else {
-              // Use the first line of the formatted address as a fallback
-              const addressParts = address.formatted_address.split(',');
-              if (addressParts.length > 0) {
-                streetAddress = addressParts[0].trim();
-              }
-            }
-            
-            // Set the address fields
-            setStreet(streetAddress);
-            setCity(locality || '');
-            setState(administrative_area || '');
-            setPostalCode(postal_code || '');
-            
-            console.log('Geocoded address:', {
-              streetAddress,
-              locality,
-              administrative_area,
-              postal_code,
-              formatted: address.formatted_address
-            });
-            
-            // Update parent with both coordinates and address info
-            updateParentComponent({
-              street: streetAddress,
-              city: locality || '',
-              state: administrative_area || '',
-              postalCode: postal_code || '',
-              lat: pos.lat,
-              lng: pos.lng,
-              name: 'Selected Location'
-            });
-          } else {
-            console.error('Geocoding failed:', status);
-            // Keep the coordinates but show an error message
-            setInfoContent(`Location: ${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)} (Unable to get address)`);
-          }
-        });
-      } else {
-        // Keep using the coordinates
-        setInfoContent(`Location: ${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)} (No geocoder available)`);
-      }
-    }
-  };
-
-  const findClosestLocation = (position: { lat: number, lng: number }) => {
-    let closestLocation = null;
-    let closestDistance = Number.MAX_VALUE;
-    
-    detailedLocations.forEach(location => {
-      const distance = calculateDistance(
-        position.lat, position.lng,
-        location.lat, location.lng
+  const reverseGeocode = async (lat: number, lng: number) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`
       );
+      const data = await response.json();
       
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestLocation = location;
+      if (data.address) {
+        const {
+          road,
+          house_number,
+          suburb,
+          city: cityName,
+          state: stateName,
+          postcode,
+          town,
+          village
+        } = data.address;
+
+        // Construct street address
+        let streetAddress = '';
+        if (house_number && road) {
+          streetAddress = `${house_number} ${road}`;
+        } else if (road) {
+          streetAddress = road;
+        } else if (suburb) {
+          streetAddress = suburb;
+        }
+
+        // Set address components
+        setStreet(streetAddress);
+        setCity(cityName || town || village || '');
+        setState(stateName || '');
+        setPostalCode(postcode || '');
+        setPopupContent(data.display_name);
+
+        // Update parent component
+        updateParentComponent({
+          street: streetAddress,
+          city: cityName || town || village || '',
+          state: stateName || '',
+          postalCode: postcode || '',
+          lat,
+          lng,
+          name: 'Selected Location',
+          mapLink: `https://www.google.com/maps?q=${lat},${lng}`
+        });
       }
-    });
-    
-    return closestLocation;
-  };
-  
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    // Simple Euclidean distance for demonstration
-    return Math.sqrt(Math.pow(lat1 - lat2, 2) + Math.pow(lon1 - lon2, 2));
+    } catch (error) {
+      console.error('Reverse geocoding failed:', error);
+      toast({
+        title: 'Address Lookup Failed',
+        description: 'Unable to get address details for this location.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const selectLocation = (locationName: string) => {
-    const location = detailedLocations.find(loc => loc.name === locationName);
-    if (!location) return;
-    
-    const pos = { lat: location.lat, lng: location.lng };
-    setMarker(pos);
-    map?.setCenter(pos);
-    map?.setZoom(16);
-    
-    // Set address directly from our data
-    setStreet(location.street);
-    setCity(location.city);
-    setState(location.state);
-    setPostalCode(location.postalCode);
-    setInfoContent(`${location.street}, ${location.city}, ${location.state} ${location.postalCode}`);
-    setShowInfoWindow(true);
-    
-    updateParentComponent(location);
-  };
-  
+  const handleMapClick = useCallback((e: L.LeafletMouseEvent) => {
+    const { lat, lng } = e.latlng;
+    setMarker(e.latlng);
+    reverseGeocode(lat, lng);
+  }, []);
+
   const getCurrentLocation = () => {
     if (navigator.geolocation) {
       setIsLocating(true);
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const pos = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
+        async (position) => {
+          const { latitude: lat, longitude: lng } = position.coords;
+          const newMarker = L.latLng(lat, lng);
+          setMarker(newMarker);
           
-          setMarker(pos);
-          map?.setCenter(pos);
-          map?.setZoom(16);
-          setShowInfoWindow(true);
-          
-          // Set the coordinates immediately while we wait for geocoding
-          setInfoContent("Getting address details...");
-          
-          // Make sure Google Maps is loaded and geocoder is available
-          if (window.google && (!geocoder || !map)) {
-            const newGeocoder = new window.google.maps.Geocoder();
-            setGeocoder(newGeocoder);
-          }
-          
-          if (geocoder) {
-            geocoder.geocode({ location: pos }, (results, status) => {
-              setIsLocating(false);
-              if (status === 'OK' && results?.[0]) {
-                const address = results[0];
-                setInfoContent(address.formatted_address);
-                
-                // Extract address components
-                let streetNumber = '';
-                let route = '';
-                let neighborhood = '';
-                let sublocality = '';
-                let locality = '';
-                let administrative_area = '';
-                let postal_code = '';
-                
-                for (const component of address.address_components) {
-                  const types = component.types;
-                  if (types.includes('street_number')) {
-                    streetNumber = component.long_name;
-                  } else if (types.includes('route')) {
-                    route = component.long_name;
-                  } else if (types.includes('neighborhood')) {
-                    neighborhood = component.long_name;
-                  } else if (types.includes('sublocality') || types.includes('sublocality_level_1')) {
-                    sublocality = component.long_name;
-                  } else if (types.includes('locality')) {
-                    locality = component.long_name;
-                  } else if (types.includes('administrative_area_level_1')) {
-                    administrative_area = component.long_name;
-                  } else if (types.includes('postal_code')) {
-                    postal_code = component.long_name;
-                  }
-                }
-                
-                // Construct a more complete street address
-                let streetAddress = '';
-                if (streetNumber && route) {
-                  streetAddress = `${streetNumber} ${route}`;
-                } else if (route) {
-                  streetAddress = route;
-                } else if (neighborhood) {
-                  streetAddress = neighborhood;
-                } else if (sublocality) {
-                  streetAddress = sublocality;
-                } else {
-                  // Use the first line of the formatted address as a fallback
-                  const addressParts = address.formatted_address.split(',');
-                  if (addressParts.length > 0) {
-                    streetAddress = addressParts[0].trim();
-                  }
-                }
-                
-                // Set the address fields
-                setStreet(streetAddress);
-                setCity(locality || '');
-                setState(administrative_area || '');
-                setPostalCode(postal_code || '');
-                
-                // Update parent with both coordinates and address info
-                const updatedAddress = {
-                  street: streetAddress,
-                  city: locality || '',
-                  state: administrative_area || '',
-                  postalCode: postal_code || '',
-                  lat: pos.lat,
-                  lng: pos.lng,
-                  name: 'Current Location'
-                };
-                
-                // Update the parent component
-                onAddressSelect(updatedAddress);
-                
-                // Update the selected address display
-                setInfoContent(`${streetAddress}, ${locality}, ${administrative_area} ${postal_code}`);
-              } else {
-                console.error('Geocoding failed:', status);
-                setIsLocating(false);
-                // Silently continue without showing an error toast
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`
+            );
+            const data = await response.json();
+            
+            if (data.address) {
+              const {
+                road,
+                house_number,
+                suburb,
+                city: cityName,
+                state: stateName,
+                postcode,
+                town,
+                village
+              } = data.address;
+
+              // Construct street address
+              let streetAddress = '';
+              if (house_number && road) {
+                streetAddress = `${house_number} ${road}`;
+              } else if (road) {
+                streetAddress = road;
+              } else if (suburb) {
+                streetAddress = suburb;
               }
+
+              const finalCity = cityName || town || village || '';
+              const finalState = stateName || '';
+              const finalPostcode = postcode || '';
+
+              // Update all address fields
+              setStreet(streetAddress);
+              setCity(finalCity);
+              setState(finalState);
+              setPostalCode(finalPostcode);
+              setPopupContent(data.display_name);
+
+              // Update parent component with complete address
+              onAddressSelect({
+                street: streetAddress,
+                city: finalCity,
+                state: finalState,
+                postalCode: finalPostcode,
+                lat,
+                lng,
+                name: 'Current Location',
+                mapLink: `https://www.google.com/maps?q=${lat},${lng}`
+              });
+            }
+          } catch (error) {
+            console.error('Reverse geocoding failed:', error);
+            toast({
+              title: 'Address Lookup Failed',
+              description: 'Unable to get address details for this location. Please try selecting manually.',
+              variant: 'destructive',
             });
-          } else if (retryCount < 5) {
-            // If geocoder is not available, increment retry count and try again
-            setRetryCount(prev => prev + 1);
-            setTimeout(getCurrentLocation, 1000);
-          } else {
+          } finally {
             setIsLocating(false);
-            // After 5 retries, silently fail and let user select location manually
-            console.log('Unable to initialize Google Maps after retries');
           }
         },
         (error) => {
@@ -506,25 +351,77 @@ const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSe
       });
     }
   };
-  
+
   const updateParentComponent = (location?: typeof detailedLocations[0]) => {
+    if (!marker && !location) return;
+    
+    // Generate map link using Google Maps format
+    const mapLink = location ? 
+      `https://www.google.com/maps?q=${location.lat},${location.lng}` :
+      `https://www.google.com/maps?q=${marker!.lat},${marker!.lng}`;
+    
     onAddressSelect({
       street: location?.street || street,
       city: location?.city || city,
       state: location?.state || state,
       postalCode: location?.postalCode || postalCode,
-      lat: location?.lat || marker.lat,
-      lng: location?.lng || marker.lng,
-      name: location?.name
+      lat: location?.lat || marker!.lat,
+      lng: location?.lng || marker!.lng,
+      name: location?.name,
+      mapLink: mapLink
     });
   };
-  
+
   // Update parent component whenever address fields change
   useEffect(() => {
     if (street || city || state || postalCode) {
       updateParentComponent();
     }
   }, [street, city, state, postalCode]);
+
+  const handleUpdateAddress = () => {
+    if (!street || !city || !state || !postalCode) {
+      toast({
+        title: "Incomplete Address",
+        description: "Please fill in all address fields before updating.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!marker) {
+      toast({
+        title: "Location Required",
+        description: "Please select a location on the map.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const mapLink = `https://www.google.com/maps?q=${marker.lat},${marker.lng}`;
+    
+    onAddressSelect({
+      street,
+      city,
+      state,
+      postalCode,
+      lat: marker.lat,
+      lng: marker.lng,
+      mapLink
+    });
+
+    toast({
+      title: "Address Updated",
+      description: "Your delivery address has been updated successfully.",
+    });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleUpdateAddress();
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -562,43 +459,35 @@ const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSe
             </p>
           </div>
           
-          <div className="relative">
-            <LoadScript googleMapsApiKey={apiKey}>
-              <GoogleMap
-                mapContainerStyle={containerStyle}
-                center={marker}
-                zoom={15}
-                onLoad={onLoad}
-                onUnmount={onUnmount}
-                onClick={handleMapClick}
-                options={{
-                  zoomControl: true,
-                  streetViewControl: false,
-                  mapTypeControl: false,
-                  fullscreenControl: false,
-                  gestureHandling: 'greedy',
-                }}
-              >
-                <Marker 
-                  position={marker}
-                  onClick={() => {
-                    if (infoContent) {
-                      setShowInfoWindow(true);
-                    }
-                  }}
-                >
-                  {showInfoWindow && infoContent && (
-                    <InfoWindow
-                      onCloseClick={() => setShowInfoWindow(false)}
-                    >
-                      <div className="text-black text-sm p-1 max-w-[250px]">
-                        {infoContent}
-                      </div>
-                    </InfoWindow>
-                  )}
-                </Marker>
-              </GoogleMap>
-            </LoadScript>
+          <div className="relative h-[400px] w-full">
+            <MapContainer
+              center={marker ? [marker.lat, marker.lng] : [defaultCenter.lat, defaultCenter.lng]}
+              zoom={13}
+              scrollWheelZoom={true}
+              style={{ height: '100%', width: '100%' }}
+              className="z-0"
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                maxZoom={19}
+              />
+              <MapEvents onMapClick={handleMapClick} />
+              {marker && (
+                <>
+                  <MapCenterControl center={marker} />
+                  <Marker position={[marker.lat, marker.lng]}>
+                    {popupContent && (
+                      <Popup>
+                        <div className="text-sm p-1 max-w-[250px]">
+                          {popupContent}
+                        </div>
+                      </Popup>
+                    )}
+                  </Marker>
+                </>
+              )}
+            </MapContainer>
             
             {isLocating && (
               <div className="absolute inset-0 bg-white/50 flex items-center justify-center">
@@ -674,17 +563,33 @@ const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSe
               <label className="text-sm font-medium mb-1 block">Postal Code</label>
               <Input 
                 value={postalCode} 
-                onChange={(e) => setPostalCode(e.target.value)}
+                onChange={(e) => {
+                  const newPostalCode = e.target.value;
+                  setPostalCode(newPostalCode);
+                  // Update parent component immediately when postal code changes
+                  updateParentComponent({
+                    street,
+                    city,
+                    state,
+                    postalCode: newPostalCode,
+                    lat: marker ? marker.lat : 0,
+                    lng: marker ? marker.lng : 0,
+                    mapLink: marker ? `https://www.google.com/maps?q=${marker.lat},${marker.lng}` : ''
+                  });
+                }}
+                onKeyDown={handleKeyDown}
                 placeholder="Postal Code"
+                className="w-full p-4 rounded-lg border border-border text-lg"
+                required
               />
             </div>
             
             <div className="pt-2">
               <Button 
-                onClick={() => setActiveTab('map')}
-                className="w-full"
+                onClick={handleUpdateAddress}
+                className="w-full bg-primary text-white hover:bg-primary/90"
               >
-                Save and Return to Map
+                Update Delivery Address
               </Button>
             </div>
           </div>
@@ -694,4 +599,4 @@ const GoogleMapAddress: React.FC<GoogleMapAddressProps> = ({ apiKey, onAddressSe
   );
 };
 
-export default GoogleMapAddress;
+export default MapAddress;

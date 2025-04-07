@@ -130,6 +130,7 @@ export const placeOrder = async (orderData: {
   total_price: number;
   delivery_type: 'delivery' | 'pickup';
   delivery_address?: string;
+  map_link: string;
   payment_method: string;
   advance_payment: number;
 }): Promise<{ message: string; order_id: number }> => {
@@ -152,6 +153,7 @@ export const placeOrder = async (orderData: {
         total_amount: orderData.total_price,
         delivery_type: orderData.delivery_type,
         delivery_address: orderData.delivery_address || '',
+        map_link: orderData.map_link,
         payment_method: orderData.payment_method,
         advance_payment: orderData.advance_payment
       }),
