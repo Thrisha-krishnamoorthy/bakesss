@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orders</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Existing styles */
+        .status-dropdown {
+            display: none;
+            margin-left: 10px;
+            padding: 5px;
+        }
+        
+        /* Payment status styles */
+        .payment-status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .payment-status.not-paid {
+            background-color: #ff4444;
+            color: white;
+        }
+        
+        .payment-status.advance-paid {
+            background-color: #ffbb33;
+            color: white;
+        }
+        
+        .payment-status.full-paid {
+            background-color: #00C851;
+            color: white;
+        }
+
+        .payment-status-dropdown {
+            display: none;
+            margin-left: 10px;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        /* Remove conflicting sorting styles */
+        th {
+            position: relative;
+            padding-right: 30px !important;
+        }
+
+        th:hover {
+            background: #444 !important;
+        }
+
+        /* Ensure sort indicators are visible */
+        th::after {
+            content: '↕';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.5;
+        }
+
+        th.sort-asc::after {
+            content: '↑';
+            opacity: 1;
+        }
+
+        th.sort-desc::after {
+            content: '↓';
+            opacity: 1;
+        }
+
+        /* Table container styles */
+        .orders-container {
+            overflow: auto;
+            max-height: calc(100vh - 200px);
+            padding: 20px;
+            margin: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Ensure table header stays visible when scrolling */
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        /* Updated Filter dropdown styles */
+        .filter-container {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .filter-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+            min-width: 150px;
+            margin-top: 5px;
+        }
+
+        .filter-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            color: #333;
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: none;
+        }
+
+        .filter-option:hover {
+            background: #f5f5f5;
+        }
+
+        .filter-active {
+            background: #e0e0e0;
+        }
+
+        /* Filter icon */
+        .filter-icon {
+            margin-left: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        .filter-icon:hover {
+            opacity: 1;
+        }
+
+        /* Clear filter button */
+        .clear-filter {
+            padding: 8px 12px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            width: 100%;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .clear-filter:hover {
+            background: #ff3333;
+        }
+
+        /* Ensure table header stays visible */
+        thead {
+            position: sticky;
+            top: 0;
+            background: #333;
+            z-index: 10;
+        }
+
+        th {
+            position: relative;
+            padding: 12px !important;
+            cursor: pointer;
+        }
+
+        /* Add styles for active filters */
+        .filter-option.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        /* Make filter dropdowns more visible */
+        .filter-dropdown {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            min-width: 150px;
+            z-index: 1000;
+        }
+
+        /* Style for active filter icon */
+        .filter-icon.active {
+            color: #4CAF50;
+            opacity: 1;
+        }
+
+        /* Map link styles */
+        .map-link {
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: #4285f4;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .map-link:hover {
+            background-color: #3367d6;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="sidebar">
+            <h2>Admin Panel</h2>
+            <nav>
+                <ul>
+                    <li><a href="dashboard.html">Dashboard</a></li>
+                    <li><a href="products.html">Products</a></li>
+                    <li><a href="orders.html">Orders</a></li>
+                </ul>
+            </nav>
+            <button id="logoutBtn">Logout</button>
+        </div>
+
+        <div class="dashboard-content">
+            <div class="orders-container">
+                <h2>Orders List</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-sort="order_id">Order ID</th>
+                            <th data-sort="customer_name">Customer</th>
+                            <th data-sort="email">Email</th>
+                            <th data-sort="phone">Phone</th>
+                            <th data-sort="delivery_type" class="filter-container">
+                                Delivery Type
+                                <span class="filter-icon">⚡</span>
+                                <div class="filter-dropdown" id="delivery_type-filter">
+                                    <div class="filter-option" data-value="delivery">Delivery</div>
+                                    <div class="filter-option" data-value="pickup">Pickup</div>
+                                    <button class="clear-filter">Clear Filter</button>
+                                </div>
+                            </th>
+                            <th data-sort="delivery_address">Delivery Address</th>
+                            <th data-sort="map_link">Map Location</th>
+                            <th data-sort="order_status" class="filter-container">
+                                Status
+                                <span class="filter-icon">⚡</span>
+                                <div class="filter-dropdown" id="order_status-filter">
+                                    <div class="filter-option" data-value="pending">Pending</div>
+                                    <div class="filter-option" data-value="order confirmation">Order Confirmation</div>
+                                    <div class="filter-option" data-value="baked">Baked</div>
+                                    <div class="filter-option" data-value="shipped">Shipped</div>
+                                    <div class="filter-option" data-value="delivered">Delivered</div>
+                                    <button class="clear-filter">Clear Filter</button>
+                                </div>
+                            </th>
+                            <th data-sort="total_price">Total Price</th>
+                            <th data-sort="payment_status" class="filter-container">
+                                Payment Status
+                                <span class="filter-icon">⚡</span>
+                                <div class="filter-dropdown" id="payment_status-filter">
+                                    <div class="filter-option" data-value="not paid">Not Paid</div>
+                                    <div class="filter-option" data-value="advance paid">Advance Paid</div>
+                                    <div class="filter-option" data-value="full paid">Full Paid</div>
+                                    <button class="clear-filter">Clear Filter</button>
+                                </div>
+                            </th>
+                            <th data-sort="advance_payment">Advance Payment</th>
+                            <th data-sort="product_name">Product</th>
+                            <th data-sort="quantity">Quantity</th>
+                            <th data-sort="item_price">Item Price</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody">
+                        <!-- Orders will be dynamically populated here -->
+                    </tbody>
+                </table>
+                <a href="dashboard.html" class="back-btn">Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        let currentOrders = [];
+        let filteredOrders = [];
+        let currentSort = {
+            column: null,
+            direction: 'asc'
+        };
+        let currentFilters = {
+            delivery_type: null,
+            order_status: null,
+            payment_status: null
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchOrders();
+            setupFilterListeners();
+            setupSortingListeners();
+        });
+
+        function setupSortingListeners() {
+            const headers = document.querySelectorAll('th[data-sort]');
+            headers.forEach(header => {
+                header.addEventListener('click', () => {
+                    const column = header.dataset.sort;
+                    sortOrders(column);
+                    updateSortIndicators(header);
+                });
+            });
+        }
+
+        function updateSortIndicators(clickedHeader) {
+            document.querySelectorAll('th').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+            });
+
+            if (currentSort.column === clickedHeader.dataset.sort) {
+                clickedHeader.classList.add(
+                    currentSort.direction === 'asc' ? 'sort-asc' : 'sort-desc'
+                );
+            }
+        }
+
+        function sortOrders(column) {
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+
+            currentOrders.sort((a, b) => {
+                let valueA = a[column];
+                let valueB = b[column];
+
+                // Handle numeric values
+                if (column === 'order_id' || column === 'quantity' || column === 'total_price' || column === 'item_price') {
+                    valueA = parseFloat(valueA) || 0;
+                    valueB = parseFloat(valueB) || 0;
+                } else {
+                    // Handle string values
+                    valueA = String(valueA).toLowerCase();
+                    valueB = String(valueB).toLowerCase();
+                }
+
+                if (valueA < valueB) return currentSort.direction === 'asc' ? -1 : 1;
+                if (valueA > valueB) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            displayOrders(currentOrders);
+        }
+
+        function setupFilterListeners() {
+            // Setup filter icons
+            document.querySelectorAll('.filter-icon').forEach(icon => {
+                icon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const dropdown = icon.nextElementSibling;
+                    
+                    // Close other dropdowns
+                    document.querySelectorAll('.filter-dropdown').forEach(d => {
+                        if (d !== dropdown) {
+                            d.style.display = 'none';
+                        }
+                    });
+                    
+                    // Toggle current dropdown
+                    dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+                });
+            });
+
+            // Setup filter options
+            document.querySelectorAll('.filter-option').forEach(option => {
+                option.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const dropdown = e.target.closest('.filter-dropdown');
+                    const filterType = dropdown.id.split('-')[0];
+                    const value = e.target.getAttribute('data-value');
+                    
+                    console.log('Filter clicked:', filterType, value); // Debug log
+                    
+                    // Update active state
+                    dropdown.querySelectorAll('.filter-option').forEach(opt => {
+                        opt.classList.remove('active');
+                    });
+                    e.target.classList.add('active');
+                    
+                    // Update filter icon
+                    const icon = dropdown.previousElementSibling;
+                    icon.classList.add('active');
+                    icon.style.color = '#4CAF50'; // Make icon green when filter is active
+                    
+                    // Update filter and apply
+                    currentFilters[filterType] = value;
+                    console.log('Current filters:', currentFilters); // Debug log
+                    fetchFilteredOrders();
+                    
+                    // Close dropdown
+                    dropdown.style.display = 'none';
+                });
+            });
+
+            // Setup clear filter buttons
+            document.querySelectorAll('.clear-filter').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const dropdown = e.target.closest('.filter-dropdown');
+                    const filterType = dropdown.id.split('-')[0];
+                    
+                    console.log('Clearing filter:', filterType); // Debug log
+                    
+                    // Clear filter
+                    currentFilters[filterType] = null;
+                    
+                    // Remove active states
+                    dropdown.querySelectorAll('.filter-option').forEach(opt => {
+                        opt.classList.remove('active');
+                    });
+                    
+                    // Update filter icon
+                    const icon = dropdown.previousElementSibling;
+                    icon.classList.remove('active');
+                    icon.style.color = ''; // Reset icon color
+                    
+                    // Apply filters
+                    fetchFilteredOrders();
+                    
+                    // Close dropdown
+                    dropdown.style.display = 'none';
+                });
+            });
+
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.filter-container')) {
+                    closeAllDropdowns();
+                }
+            });
+        }
+
+        function fetchFilteredOrders() {
+            // Build query parameters
+            const params = new URLSearchParams();
+            
+            // Only add parameters that have values
+            if (currentFilters.delivery_type) {
+                params.append('delivery_type', currentFilters.delivery_type.toLowerCase());
+            }
+            if (currentFilters.order_status) {
+                params.append('order_status', currentFilters.order_status.toLowerCase());
+            }
+            if (currentFilters.payment_status) {
+                params.append('payment_status', currentFilters.payment_status.toLowerCase());
+            }
+
+            // Log the URL and parameters for debugging
+            console.log('Fetching orders with params:', params.toString());
+
+            // Fetch filtered orders using the /orders endpoint
+            fetch(`http://localhost:5001/orders?${params.toString()}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(orders => {
+                    console.log('Received orders:', orders); // Debug log
+                    filteredOrders = orders;
+                    displayOrders(filteredOrders);
+                })
+                .catch(error => {
+                    console.error('Error fetching orders:', error);
+                    alert('Failed to load orders. Please try again.');
+                });
+        }
+
+        function closeAllDropdowns() {
+            document.querySelectorAll('.filter-dropdown').forEach(dropdown => {
+                dropdown.style.display = 'none';
+            });
+        }
+
+        function displayOrders(orders) {
+            const tbody = document.getElementById('ordersTableBody');
+            tbody.innerHTML = '';
+            
+            if (!orders || orders.length === 0) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td colspan="14" style="text-align: center;">No orders found</td>`;
+                tbody.appendChild(tr);
+                return;
+            }
+            
+            orders.forEach(order => {
+                const tr = document.createElement('tr');
+                const paymentStatus = order.payment_status || 'not paid';
+                const orderStatus = order.order_status || 'pending';
+                
+                tr.innerHTML = `
+                    <td>${order.order_id}</td>
+                    <td>${order.customer_name || ''}</td>
+                    <td>${order.email || ''}</td>
+                    <td>${order.phone || ''}</td>
+                    <td>${order.delivery_type || ''}</td>
+                    <td>${order.delivery_address || ''}</td>
+                    <td>${order.map_link ? `<a href="${order.map_link}" target="_blank" class="map-link">View on Map</a>` : ''}</td>
+                    
+                    <td>
+                        <span onclick="toggleStatusDropdown(this)">${orderStatus}</span>
+                        <select onchange="updateStatus(this)" style="display: none;">
+                            <option value="pending" ${orderStatus === 'pending' ? 'selected' : ''}>Pending</option>
+                            <option value="order confirmation" ${orderStatus === 'order confirmation' ? 'selected' : ''}>Order Confirmation</option>
+                            <option value="baked" ${orderStatus === 'baked' ? 'selected' : ''}>Baked</option>
+                            <option value="shipped" ${orderStatus === 'shipped' ? 'selected' : ''}>Shipped</option>
+                            <option value="delivered" ${orderStatus === 'delivered' ? 'selected' : ''}>Delivered</option>
+                        </select>
+                    </td>
+                    <td>₹${order.total_price || '0.00'}</td>
+                    <td>
+                        <span class="payment-status ${paymentStatus.replace(' ', '-')}" onclick="togglePaymentStatusDropdown(this)">${paymentStatus}</span>
+                        <select class="payment-status-dropdown" onchange="updatePaymentStatus(this)" style="display: none;">
+                            <option value="not paid" ${paymentStatus === 'not paid' ? 'selected' : ''}>Not Paid</option>
+                            <option value="advance paid" ${paymentStatus === 'advance paid' ? 'selected' : ''}>Advance Paid</option>
+                            <option value="full paid" ${paymentStatus === 'full paid' ? 'selected' : ''}>Full Paid</option>
+                        </select>
+                    </td>
+                    <td>₹${order.advance_payment || '0.00'}</td>
+                    <td>${order.product_name || ''}</td>
+                    <td>${order.quantity || '0'}</td>
+                    <td>₹${order.item_price || '0.00'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function fetchOrders() {
+            fetch('http://localhost:5001/orders')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(orders => {
+                    console.log('Received all orders:', orders); // Debug log
+                    currentOrders = orders;
+                    filteredOrders = [...orders];
+                    displayOrders(filteredOrders);
+                })
+                .catch(error => {
+                    console.error('Error fetching orders:', error);
+                    alert('Failed to load orders. Please try again.');
+                });
+        }
+
+        // Keep existing functions
+        function togglePaymentStatusDropdown(element) {
+            const dropdown = element.nextElementSibling;
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+            element.style.display = 'none';
+        }
+
+        function updatePaymentStatus(selectElement) {
+            const orderId = selectElement.closest('tr').cells[0].textContent;
+            const newStatus = selectElement.value;
+            const statusSpan = selectElement.previousElementSibling;
+            
+            fetch(`http://localhost:5001/orders/${orderId}/payment-status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ payment_status: newStatus })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusSpan.textContent = newStatus;
+                    statusSpan.className = `payment-status ${newStatus.replace(' ', '-')}`;
+                    statusSpan.style.display = 'inline-block';
+                    selectElement.style.display = 'none';
+                    
+                    // Update the order in currentOrders array
+                    const orderIndex = currentOrders.findIndex(order => order.order_id === parseInt(orderId));
+                    if (orderIndex !== -1) {
+                        currentOrders[orderIndex].payment_status = newStatus;
+                    }
+                } else {
+                    alert('Failed to update payment status: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error updating payment status:', error);
+                alert('Failed to update payment status. Please try again.');
+            });
+        }
+
+        function toggleStatusDropdown(element) {
+            const dropdown = element.nextElementSibling;
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+            element.style.display = 'none';
+        }
+
+        function updateStatus(selectElement) {
+            const orderId = selectElement.closest('tr').cells[0].textContent;
+            const newStatus = selectElement.value;
+            const statusSpan = selectElement.previousElementSibling;
+            
+            fetch(`http://localhost:5001/orders/${orderId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status: newStatus })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusSpan.textContent = newStatus;
+                    statusSpan.style.display = 'inline-block';
+                    selectElement.style.display = 'none';
+                    
+                    // Update the order in currentOrders array
+                    const orderIndex = currentOrders.findIndex(order => order.order_id === parseInt(orderId));
+                    if (orderIndex !== -1) {
+                        currentOrders[orderIndex].order_status = newStatus;
+                    }
+                } else {
+                    alert('Failed to update status: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error updating status:', error);
+                alert('Failed to update status. Please try again.');
+            });
+        }
+    </script>
+</body>
+</html>

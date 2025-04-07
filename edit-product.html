@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Product</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .edit-product-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            height: 100px;
+            resize: vertical;
+        }
+
+        .form-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .save-btn, .cancel-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .save-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .cancel-btn {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .save-btn:hover {
+            background-color: #45a049;
+        }
+
+        .cancel-btn:hover {
+            background-color: #da190b;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="sidebar">
+            <h2>Admin Panel</h2>
+            <nav>
+                <ul>
+                    <li><a href="dashboard.html">Dashboard</a></li>
+                    <li><a href="products.html">Products</a></li>
+                    <li><a href="orders.html">Orders</a></li>
+                </ul>
+            </nav>
+            <button id="logoutBtn">Logout</button>
+        </div>
+
+        <div class="dashboard-content">
+            <div class="edit-product-container">
+                <h2>Edit Product</h2>
+                <form id="editProductForm">
+                    <input type="hidden" id="product_id" name="product_id">
+                    
+                    <div class="form-group">
+                        <label for="name">Product Name</label>
+                        <input type="text" id="name" name="name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <textarea id="description" name="description"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="price">Price</label>
+                        <input type="number" id="price" name="price" step="0.01" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="image">Product Image</label>
+                        <input type="file" id="image" name="image" accept="image/*">
+                        <small>Supported formats: JPG, PNG, GIF (max 5MB)</small>
+                        <div id="current-image" style="margin-top: 10px;">
+                            <img id="preview-image" src="" alt="Current product image" style="max-width: 200px; display: none;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="category">Category</label>
+                        <select id="category" name="category" required>
+                            <option value="Pastries">Pastries</option>
+                            <option value="Artisan breads">Artisan Breads</option>
+                            <option value="Cookies & Treats">Cookies & Treats</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quantity">Quantity</label>
+                        <input type="number" id="quantity" name="quantity" step="0.01" required>
+                    </div>
+
+                    <div class="form-buttons">
+                        <button type="submit" class="save-btn">Save Changes</button>
+                        <button type="button" class="cancel-btn" onclick="window.location.href='products.html'">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get product ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const productId = urlParams.get('id');
+
+        if (!productId) {
+            alert('No product ID provided');
+            window.location.href = 'products.html';
+        }
+
+        // Fetch product details
+        fetch(`http://localhost:5001/products/${productId}`)
+            .then(response => response.json())
+            .then(product => {
+                document.getElementById('product_id').value = product.product_id;
+                document.getElementById('name').value = product.name;
+                document.getElementById('description').value = product.description;
+                document.getElementById('price').value = product.price;
+                document.getElementById('category').value = product.category;
+                document.getElementById('quantity').value = parseFloat(product.quantity).toFixed(2);
+                
+                // Display current image if exists
+                if (product.image_data) {
+                    const previewImage = document.getElementById('preview-image');
+                    previewImage.src = `data:image/jpeg;base64,${product.image_data}`;
+                    previewImage.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to load product details');
+                window.location.href = 'products.html';
+            });
+
+        // Handle form submission
+        document.getElementById('editProductForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('name', document.getElementById('name').value);
+            formData.append('description', document.getElementById('description').value);
+            formData.append('price', document.getElementById('price').value);
+            formData.append('category', document.getElementById('category').value);
+            formData.append('quantity', document.getElementById('quantity').value);
+            
+            const imageFile = document.getElementById('image').files[0];
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
+
+            fetch(`http://localhost:5001/products/${productId}`, {
+                method: 'PUT',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert('Product updated successfully!');
+                    window.location.href = 'products.html';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update product. Please try again.');
+            });
+        });
+    </script>
+</body>
+</html> 
